@@ -9,8 +9,8 @@ using YiSha.Util;
 
 namespace YiSha.Entity.OrganizationManage
 {
-    [Table("sys_user_belong")]
-    public class UserBelongEntity : BaseEntity
+    [Table("SysUserBelong")]
+    public class UserBelongEntity : BaseCreateEntity
     {
         [JsonConverter(typeof(StringJsonConverter))]
         public long? UserId { get; set; }

@@ -15,7 +15,7 @@ namespace YiSha.Data.EF
         {
             using (var db2 = new ContextForQueryType<T>(db.Database.GetDbConnection()))
             {
-                return await db2.Query<T>().FromSql(sql, parameters).ToListAsync();
+                return await db2.Set<T>().FromSqlRaw(sql, parameters).ToListAsync();
             }
         }
 
@@ -31,14 +31,14 @@ namespace YiSha.Data.EF
             protected override void OnConfiguring(DbContextOptionsBuilder optionsBuilder)
             {
                 // switch on the connection type name to enable support multiple providers
-                string dbType = GlobalContext.Configuration.GetSection("DB:DBType").Value;
+                string dbType = GlobalContext.SystemConfig.DBProvider;
                 switch (dbType)
                 {
                     case "SqlServer":
                         optionsBuilder.UseSqlServer(connection, options => options.EnableRetryOnFailure());
                         break;
                     case "MySql":
-                        optionsBuilder.UseMySQL(connection);
+                        optionsBuilder.UseMySql(connection, options => options.EnableRetryOnFailure());
                         break;
                     case "Oracle":
                         break;
@@ -50,7 +50,10 @@ namespace YiSha.Data.EF
 
             protected override void OnModelCreating(ModelBuilder modelBuilder)
             {
-                modelBuilder.Query<T>();
+                modelBuilder.Entity<T>(p =>
+                {
+                    p.HasNoKey();
+                });
                 base.OnModelCreating(modelBuilder);
             }
         }

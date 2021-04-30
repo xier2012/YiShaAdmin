@@ -45,14 +45,13 @@ namespace YiSha.Service.SystemManage
             }
             else
             {
-                await entity.Modify();
                 await this.BaseRepository().Update<AutoJobLogEntity>(entity);
             }
         }
 
         public async Task DeleteForm(string ids)
         {
-            long[] idArr = CommonHelper.SplitToArray<long>(ids, ',');
+            long[] idArr = TextHelper.SplitToArray<long>(ids, ',');
             await this.BaseRepository().Delete<AutoJobLogEntity>(idArr);
         }
         #endregion

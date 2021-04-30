@@ -1,10 +1,11 @@
-﻿using Newtonsoft.Json;
-using Newtonsoft.Json.Linq;
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
+using Newtonsoft.Json;
+using Newtonsoft.Json.Linq;
+using YiSha.Util.Extension;
 
 namespace YiSha.Util
 {
@@ -16,6 +17,7 @@ namespace YiSha.Util
             Json = Json.Replace("&nbsp;", "");
             return Json == null ? default(T) : JsonConvert.DeserializeObject<T>(Json);
         }
+
         public static JObject ToJObject(this string Json)
         {
             return Json == null ? JObject.Parse("{}") : JObject.Parse(Json.Replace("&nbsp;", ""));
@@ -23,7 +25,7 @@ namespace YiSha.Util
     }
     #endregion
 
-    #region StringJsonConverter
+    #region JsonConverter
     /// <summary>
     /// Json数据返回到前端js的时候，把数值很大的long类型转成字符串
     /// </summary>
@@ -33,15 +35,7 @@ namespace YiSha.Util
 
         public override object ReadJson(JsonReader reader, Type objectType, object existingValue, JsonSerializer serializer)
         {
-            try
-            {
-                string sValue = reader.Value.ToString();
-                return long.Parse(sValue);
-            }
-            catch (Exception ex)
-            {
-                throw ex;
-            }
+            return reader.Value.ParseToLong();
         }
 
         public override bool CanConvert(Type objectType)
@@ -75,22 +69,7 @@ namespace YiSha.Util
 
         public override object ReadJson(JsonReader reader, Type objectType, object existingValue, JsonSerializer serializer)
         {
-            try
-            {
-                object dt = reader.Value;
-                if (dt != null)
-                {
-                    return DateTime.Parse(dt.ToString());
-                }
-                else
-                {
-                    return null;
-                }
-            }
-            catch (Exception ex)
-            {
-                throw ex;
-            }
+            return reader.Value.ParseToString().ParseToDateTime();
         }
 
         public override void WriteJson(JsonWriter writer, object value, JsonSerializer serializer)

@@ -8,6 +8,7 @@ using YiSha.Util.Model;
 using YiSha.Entity.SystemManage;
 using YiSha.Model.Param.SystemManage;
 using YiSha.Service.SystemManage;
+using YiSha.Business.Cache;
 
 namespace YiSha.Business.SystemManage
 {
@@ -15,12 +16,14 @@ namespace YiSha.Business.SystemManage
     {
         private DataDictDetailService dataDictDetailService = new DataDictDetailService();
 
+        private DataDictDetailCache dataDictDetailCache = new DataDictDetailCache();
+
         #region  获取数据
         public async Task<TData<List<DataDictDetailEntity>>> GetList(DataDictDetailListParam param)
         {
             TData<List<DataDictDetailEntity>> obj = new TData<List<DataDictDetailEntity>>();
-            obj.Result = await dataDictDetailService.GetList(param);
-            obj.TotalCount = obj.Result.Count;
+            obj.Data = await dataDictDetailService.GetList(param);
+            obj.Total = obj.Data.Count;
             obj.Tag = 1;
             return obj;
         }
@@ -28,8 +31,8 @@ namespace YiSha.Business.SystemManage
         public async Task<TData<List<DataDictDetailEntity>>> GetPageList(DataDictDetailListParam param, Pagination pagination)
         {
             TData<List<DataDictDetailEntity>> obj = new TData<List<DataDictDetailEntity>>();
-            obj.Result = await dataDictDetailService.GetPageList(param, pagination);
-            obj.TotalCount = pagination.TotalCount;
+            obj.Data = await dataDictDetailService.GetPageList(param, pagination);
+            obj.Total = pagination.TotalCount;
             obj.Tag = 1;
             return obj;
         }
@@ -37,7 +40,7 @@ namespace YiSha.Business.SystemManage
         public async Task<TData<DataDictDetailEntity>> GetEntity(long id)
         {
             TData<DataDictDetailEntity> obj = new TData<DataDictDetailEntity>();
-            obj.Result = await dataDictDetailService.GetEntity(id);
+            obj.Data = await dataDictDetailService.GetEntity(id);
             obj.Tag = 1;
             return obj;
         }
@@ -45,7 +48,7 @@ namespace YiSha.Business.SystemManage
         public async Task<TData<int>> GetMaxSort()
         {
             TData<int> obj = new TData<int>();
-            obj.Result = await dataDictDetailService.GetMaxSort();
+            obj.Data = await dataDictDetailService.GetMaxSort();
             obj.Tag = 1;
             return obj;
         }
@@ -66,7 +69,8 @@ namespace YiSha.Business.SystemManage
                 return obj;
             }
             await dataDictDetailService.SaveForm(entity);
-            obj.Result = entity.Id.ParseToString();
+            dataDictDetailCache.Remove();
+            obj.Data = entity.Id.ParseToString();
             obj.Tag = 1;
             return obj;
         }
@@ -75,6 +79,7 @@ namespace YiSha.Business.SystemManage
         {
             TData<long> obj = new TData<long>();
             await dataDictDetailService.DeleteForm(ids);
+            dataDictDetailCache.Remove();
             obj.Tag = 1;
             return obj;
         }

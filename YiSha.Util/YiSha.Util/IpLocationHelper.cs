@@ -16,29 +16,20 @@ namespace YiSha.Util
             {
                 if (!IsInnerIP(ipAddress))
                 {
-                    int methods = 4;
-                    switch (DateTime.Now.Second % methods)
+                    ipLocation = GetIpLocationFromTaoBao(ipAddress);
+                    if (string.IsNullOrEmpty(ipLocation))
                     {
-                        default:
-                        case 1:
-                            ipLocation = GetIpLocationFromTaoBao(ipAddress);
-                            break;
-                        case 2:
-                            ipLocation = GetIpLocationFromIpIp(ipAddress);
-                            break;
-                        case 3:
-                            ipLocation = GetIpLocationFromPCOnline(ipAddress);
-                            break;
+                        ipLocation = GetIpLocationFromPCOnline(ipAddress);
                     }
-
                 }
             }
             catch (Exception ex)
             {
-                LogHelper.Write(ex);
+                LogHelper.Error(ex);
             }
             return ipLocation;
         }
+
         private static string GetIpLocationFromTaoBao(string ipAddress)
         {
             string url = "http://ip.taobao.com/service/getIpInfo2.php";
@@ -49,25 +40,15 @@ namespace YiSha.Util
             {
                 var json = JsonHelper.ToJObject(result);
                 var jsonData = json["data"];
-                ipLocation = jsonData["region"] + " " + jsonData["city"];
-                ipLocation = ipLocation.Trim();
+                if (jsonData != null)
+                {
+                    ipLocation = jsonData["region"] + " " + jsonData["city"];
+                    ipLocation = ipLocation.Trim();
+                }
             }
             return ipLocation;
         }
-        private static string GetIpLocationFromIpIp(string ipAddress)
-        {
-            string url = "http://freeapi.ipip.net/" + ipAddress;
-            string result = HttpHelper.HttpGet(url);
-            string ipLocation = string.Empty;
-            if (!string.IsNullOrEmpty(result))
-            {
-                result = result.Replace("\"", string.Empty);
-                var resultArr = result.Split(',');
-                ipLocation = resultArr[1] + " " + resultArr[2];
-                ipLocation = ipLocation.Trim();
-            }
-            return ipLocation;
-        }
+
         private static string GetIpLocationFromPCOnline(string ipAddress)
         {
             HttpResult httpResult = new HttpHelper().GetHtml(new HttpItem

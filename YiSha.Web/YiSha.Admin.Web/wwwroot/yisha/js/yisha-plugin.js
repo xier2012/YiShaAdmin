@@ -13,9 +13,10 @@
         var _option = $.extend({
             url: null,
             key: "Key",
-            value: "Value",          
+            value: "Value",
             data: null, // 数据源            
-            dataName: 'Result' // 数据名称
+            dataName: 'Data', // 数据名称
+            default: undefined
         }, option);
 
         var dom = {
@@ -37,7 +38,7 @@
                         },
                         error: function (xhr, status, obj) {
                             throw exception;
-                        },
+                        }
                     });
                 }
             },
@@ -51,8 +52,15 @@
                         html += "<label class='radio-box'>";
                         html += "<input type='radio' name='" + name + "' value='" + row[setting.key] + "' ref='" + ref + "' /> " + row[setting.value];
                         html += "</label>";
+
+                        if (row.IsDefault == 1) {
+                            setting.default = row[setting.key];
+                        }
                     });
                     target.append(html);
+                }
+                if (setting.default != undefined) {
+                    target.ysRadioBox("setValue", setting.default);
                 }
             }
         };
@@ -79,6 +87,9 @@
             if (typeof value != 'string') {
                 value = value.toString();
             }
+            $(target).find("div").each(function (i, ele) {
+                $(ele).removeClass('checked');
+            });
             var ids = value.split(',');
             $.each(ids, function (i, val) {
                 var radiobox = $(target).find('input[type=radio][value=' + val + ']');
@@ -102,7 +113,8 @@
             key: "Key",
             value: "Value",
             data: null, //数据源
-            dataName: false //数据名称
+            dataName: 'Data', //数据名称
+            default: undefined
         }, option);
 
         var dom = {
@@ -119,7 +131,7 @@
                         },
                         error: function (xhr, status, obj) {
                             throw exception;
-                        },
+                        }
                     });
                     if (_option.dataName) {
                         if (_option.data != null) {
@@ -137,8 +149,15 @@
                         html += "<label class='check-box'>";
                         html += "<input name='" + name + "' type='checkbox' value='" + row[setting.key] + "'>" + row[setting.value] + "</input>";
                         html += "</label>";
+
+                        if (row.IsDefault == 1) {
+                            setting.default = row[setting.key];
+                        }
                     });
                     target.append(html);
+                }
+                if (setting.default != undefined) {
+                    target.ysCheckBox("setValue", setting.default);
                 }
             }
         };
@@ -192,8 +211,9 @@
             class: null,
             multiple: false,
             data: null, // 数据源          
-            dataName: 'Result',  // 数据名称
-            onChange: null
+            dataName: 'Data',  // 数据名称
+            onChange: null,
+            default: undefined
         }, option);
 
         var dom = {
@@ -234,12 +254,20 @@
                     }
 
                     var option = '';
-                    if (!setting.class) {
-                        // 没有form-control这个class，就加一个全部选项，应该是查询条件
-                        option += "<option value='-1'>全部</option>";
-                    } else {
-                        if (!setting.multiple) {
-                            option += "<option value='' selected='selected'>请选择</option>";
+
+                    var groupOption = false; // 是否有分组
+                    if (setting.data.length > 0) {
+                        groupOption = setting.data[0][setting.value] instanceof Array;
+                    }
+
+                    if (!groupOption) {
+                        if (!setting.class) {
+                            // 没有form-control这个class，就加一个全部选项，应该是查询条件
+                            option += "<option value='-1'>全部</option>";
+                        } else {
+                            if (!setting.multiple) {
+                                option += "<option value='' selected='selected'>请选择</option>";
+                            }
                         }
                     }
 
@@ -248,7 +276,25 @@
                         if (typeof row == 'string') {
                             option += "<option value='" + row + "'>" + row + "</option>";
                         } else {
-                            option += "<option value='" + row[setting.key] + "'>" + row[setting.value] + "</option>";
+                            if (row[setting.value] instanceof Array) {
+                                // 分组的选项
+                                option += "<optgroup label='--" + row[setting.key] + "--'>";
+                                $.each(row[setting.value], function (j) {
+                                    var childRow = row[setting.value][j];
+                                    option += "<option value='" + childRow[setting.key] + "'>" + childRow[setting.value] + "</option>";
+
+                                    if (row.IsDefault == 1) {
+                                        setting.default = row[setting.key];
+                                    }
+                                });
+                            }
+                            else {
+                                option += "<option value='" + row[setting.key] + "'>" + row[setting.value] + "</option>";
+
+                                if (row.IsDefault == 1) {
+                                    setting.default = row[setting.key];
+                                }
+                            }
                         }
                     });
                     if (selectExist) {
@@ -264,6 +310,13 @@
                         }
                     }
                     $("#" + id).select2();
+
+                    // hack 搜索的select保持和其他元素的宽度一致
+                    $("#" + targetId).find(".select2-container").width(280);
+
+                    if (setting.default != undefined) {
+                        target.ysComboBox("setValue", setting.default);
+                    }
                 }
             }
         };
@@ -361,12 +414,8 @@
             var field = $(control).attr("col");
             if (control.tagName == "INPUT") {
                 if (control.type == "checkbox") {
-                    if ($(control).prop("checked")) {
-                        if (data[field]) {
-                            data[field] = data[field] + "," + $(control).val();
-                        } else {
-                            $(control).val(data[field]);
-                        }
+                    if ($(control).val() == data[field]) {
+                        $(control).prop("checked", "checked");
                     }
                 }
                 else if (control.type == "radio") {

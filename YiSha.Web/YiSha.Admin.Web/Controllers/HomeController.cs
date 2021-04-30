@@ -22,34 +22,31 @@ namespace YiSha.Admin.Web.Controllers
 {
     public class HomeController : BaseController
     {
-        private MenuBLL baseMenuBLL = new MenuBLL();
-        private UserBLL sysUserBLL = new UserBLL();
+        private MenuBLL menuBLL = new MenuBLL();
+        private UserBLL userBLL = new UserBLL();
         private LogLoginBLL logLoginBLL = new LogLoginBLL();
+        private MenuAuthorizeBLL menuAuthorizeBLL = new MenuAuthorizeBLL();
 
         #region 视图功能
         [HttpGet]
         [AuthorizeFilter]
-
         public async Task<IActionResult> Index()
         {
             OperatorInfo operatorInfo = await Operator.Instance.Current();
 
-            TData<List<MenuEntity>> objMenu = await baseMenuBLL.GetList(null);
-            List<MenuEntity> menuList = objMenu.Result;
+            TData<List<MenuEntity>> objMenu = await menuBLL.GetList(null);
+            List<MenuEntity> menuList = objMenu.Data;
             menuList = menuList.Where(p => p.MenuStatus == StatusEnum.Yes.ParseToInt()).ToList();
 
             if (operatorInfo.IsSystem != 1)
             {
-                List<MenuAuthorizeInfo> menuAuthorizeInfoList = await new MenuAuthorizeBLL().GetAuthorizeList(operatorInfo);
-                List<long?> authorizeMenuIdList = menuAuthorizeInfoList.Select(p => p.MenuId).ToList();
+                TData<List<MenuAuthorizeInfo>> objMenuAuthorize = await menuAuthorizeBLL.GetAuthorizeList(operatorInfo);
+                List<long?> authorizeMenuIdList = objMenuAuthorize.Data.Select(p => p.MenuId).ToList();
                 menuList = menuList.Where(p => authorizeMenuIdList.Contains(p.Id)).ToList();
             }
 
             ViewBag.MenuList = menuList;
-            ViewBag.UserId = operatorInfo.UserId;
-            ViewBag.UserName = operatorInfo.UserName;
-            ViewBag.DepartmentName = operatorInfo.DepartmentName;
-            ViewBag.Portrait = string.IsNullOrEmpty(operatorInfo.Portrait) ? "/" : operatorInfo.Portrait;
+            ViewBag.OperatorInfo = operatorInfo;
             return View();
         }
 
@@ -80,7 +77,7 @@ namespace YiSha.Admin.Web.Controllers
                 // 如果不允许同一个用户多次登录，当用户登出的时候，就不在线了
                 if (!GlobalContext.SystemConfig.LoginMultiple)
                 {
-                    await new UserBLL().UpdateUser(new UserEntity { Id = user.UserId, IsOnline = 0 });
+                    await userBLL.UpdateUser(new UserEntity { Id = user.UserId, IsOnline = 0 });
                 }
 
                 // 登出日志
@@ -93,11 +90,11 @@ namespace YiSha.Admin.Web.Controllers
                     Browser = NetHelper.Browser,
                     OS = NetHelper.GetOSVersion(),
                     ExtraRemark = NetHelper.UserAgent,
-                    BaseCreatorId = user.UserId,
-                    BaseModifierId = user.UserId
+                    BaseCreatorId = user.UserId
                 });
 
                 Operator.Instance.RemoveCurrent();
+                new CookieHelper().RemoveCookie("RememberMe");
             }
             #endregion
             return View(nameof(Login));
@@ -117,9 +114,8 @@ namespace YiSha.Admin.Web.Controllers
         }
 
         [HttpGet]
-        public IActionResult IdGenerator()
+        public IActionResult Skin()
         {
-            ViewBag.Id = IdGeneratorHelper.Instance.GetId();
             return View();
         }
         #endregion
@@ -127,7 +123,8 @@ namespace YiSha.Admin.Web.Controllers
         #region 获取数据
         public IActionResult GetCaptchaImage()
         {
-            var test = GlobalContext.ServiceProvider?.GetService<IHttpContextAccessor>().HttpContext.Session.Id;
+            string sessionId = GlobalContext.ServiceProvider?.GetService<IHttpContextAccessor>().HttpContext.Session.Id;
+
             Tuple<string, int> captchaCode = CaptchaHelper.GetCaptchaCode();
             byte[] bytes = CaptchaHelper.CreateCaptchaImage(captchaCode.Item1);
             new SessionHelper().WriteSession("CaptchaCode", captchaCode.Item2);
@@ -150,11 +147,11 @@ namespace YiSha.Admin.Web.Controllers
                 obj.Message = "验证码错误，请重新输入";
                 return Json(obj);
             }
-            TData<UserEntity> userObj = await sysUserBLL.CheckLogin(userName, password, (int)PlatformEnum.Web);
+            TData<UserEntity> userObj = await userBLL.CheckLogin(userName, password, (int)PlatformEnum.Web);
             if (userObj.Tag == 1)
             {
-                await new UserBLL().UpdateUser(userObj.Result);
-                await Operator.Instance.AddCurrent(userObj.Result.WebToken);
+                await new UserBLL().UpdateUser(userObj.Data);
+                await Operator.Instance.AddCurrent(userObj.Data.WebToken);
             }
 
             string ip = NetHelper.Ip;
@@ -163,26 +160,24 @@ namespace YiSha.Admin.Web.Controllers
             string userAgent = NetHelper.UserAgent;
 
             Action taskAction = async () =>
-             {
-                 LogLoginEntity logLoginEntity = new LogLoginEntity
-                 {
-                     LogStatus = userObj.Tag == 1 ? OperateStatusEnum.Success.ParseToInt() : OperateStatusEnum.Fail.ParseToInt(),
-                     Remark = userObj.Message,
-                     IpAddress = ip,
-                     IpLocation = IpLocationHelper.GetIpLocation(ip),
-                     Browser = browser,
-                     OS = os,
-                     ExtraRemark = userAgent,
-                     BaseCreatorId = userObj.Result?.Id,
-                     BaseModifierId = userObj.Result?.Id
-                 };
+            {
+                LogLoginEntity logLoginEntity = new LogLoginEntity
+                {
+                    LogStatus = userObj.Tag == 1 ? OperateStatusEnum.Success.ParseToInt() : OperateStatusEnum.Fail.ParseToInt(),
+                    Remark = userObj.Message,
+                    IpAddress = ip,
+                    IpLocation = IpLocationHelper.GetIpLocation(ip),
+                    Browser = browser,
+                    OS = os,
+                    ExtraRemark = userAgent,
+                    BaseCreatorId = userObj.Data?.Id
+                };
 
-                 // 让底层不用获取HttpContext
-                 logLoginEntity.BaseCreatorId = logLoginEntity.BaseCreatorId ?? 0;
-                 logLoginEntity.BaseModifierId = logLoginEntity.BaseModifierId ?? 0;
+                // 让底层不用获取HttpContext
+                logLoginEntity.BaseCreatorId = logLoginEntity.BaseCreatorId ?? 0;
 
-                 await new LogLoginBLL().SaveForm(logLoginEntity);
-             };
+                await logLoginBLL.SaveForm(logLoginEntity);
+            };
             AsyncTaskHelper.StartTask(taskAction);
 
             obj.Tag = userObj.Tag;

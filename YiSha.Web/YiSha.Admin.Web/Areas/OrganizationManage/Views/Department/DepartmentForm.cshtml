@@ -1,5 +1,5 @@
 ﻿@{
-    Layout = "~/Views/Shared/_SaveWhite.cshtml";
+    Layout = "~/Views/Shared/_FormWhite.cshtml";
 }
 
 <div class="wrapper animated fadeInRight">
@@ -78,9 +78,8 @@
                 type: "get",
                 success: function (obj) {
                     if (obj.Tag == 1) {
-                        var result = obj.Result;
+                        var result = obj.Data;
                         $("#form").setWebControls(result);
-                        $('#parentId').ysComboBoxTree("setValue", result.ParentId);
                     }
                 }
             });
@@ -91,7 +90,7 @@
                 type: "get",
                 success: function (obj) {
                     if (obj.Tag == 1) {
-                        $("#departmentSort").val(obj.Result);
+                        $("#departmentSort").val(obj.Data);
                     }
                 }
             });
@@ -101,6 +100,8 @@
     function saveForm(index) {
         if ($("#form").validate().form()) {
             var postData = $("#form").getWebControls({ Id: id });
+            postData.ParentId = ys.getLastValue(postData.ParentId);
+            postData.PrincipalId = ys.getLastValue(postData.PrincipalId);
             ys.ajax({
                 url: '@Url.Content("~/OrganizationManage/Department/SaveFormJson")',
                 type: "post",
@@ -108,7 +109,7 @@
                 success: function (obj) {
                     if (obj.Tag == 1) {
                         ys.msgSuccess(obj.Message);
-                        parent.searchTreeGrid();
+                        parent.searchTreeGrid(obj.Data);
                         parent.layer.close(index);
                     }
                     else {

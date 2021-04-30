@@ -3,8 +3,6 @@ using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Linq;
 using System.Reflection;
-using System.Text;
-using System.Threading.Tasks;
 
 namespace YiSha.Util
 {
@@ -25,7 +23,6 @@ namespace YiSha.Util
             if (dictCache.ContainsKey(type.FullName))
             {
                 properties = dictCache[type.FullName] as PropertyInfo[];
-
             }
             else
             {

@@ -36,7 +36,7 @@ namespace YiSha.Service.SystemManage
 
         public async Task<int> GetMaxSort()
         {
-            object result = await this.BaseRepository().FindObject("SELECT MAX(dict_sort) FROM sys_data_dict");
+            object result = await this.BaseRepository().FindObject("SELECT MAX(DictSort) FROM SysDataDict");
             int sort = result.ParseToInt();
             sort++;
             return sort;
@@ -73,21 +73,45 @@ namespace YiSha.Service.SystemManage
         #region 提交数据
         public async Task SaveForm(DataDictEntity entity)
         {
-            if (entity.Id.IsNullOrZero())
+            var db = await this.BaseRepository().BeginTrans();
+            try
             {
-                await entity.Create();
-                await this.BaseRepository().Insert<DataDictEntity>(entity);
+                if (!entity.Id.IsNullOrZero())
+                {
+                    var dbEntity = await db.FindEntity<DataDictEntity>(entity.Id.Value);
+                    if (dbEntity.DictType != entity.DictType)
+                    {
+                        // 更新子表的DictType，因为2个表用DictType进行关联
+                        IEnumerable<DataDictDetailEntity> detailList = await db.FindList<DataDictDetailEntity>(p => p.DictType == dbEntity.DictType);
+                        foreach (DataDictDetailEntity detailEntity in detailList)
+                        {
+                            detailEntity.DictType = entity.DictType;
+                            await detailEntity.Modify();
+                        }
+                    }
+                    dbEntity.DictType = entity.DictType;
+                    dbEntity.Remark = entity.Remark;
+                    dbEntity.DictSort = entity.DictSort;
+                    await dbEntity.Modify();
+                    await db.Update<DataDictEntity>(dbEntity);
+                }
+                else
+                {
+                    await entity.Create();
+                    await db.Insert<DataDictEntity>(entity);
+                }
+                await db.CommitTrans();
             }
-            else
+            catch
             {
-                await entity.Modify();
-                await this.BaseRepository().Update<DataDictEntity>(entity);
+                await db.RollbackTrans();
+                throw;
             }
         }
 
         public async Task DeleteForm(string ids)
         {
-            long[] idArr = CommonHelper.SplitToArray<long>(ids, ',');
+            long[] idArr = TextHelper.SplitToArray<long>(ids, ',');
             await this.BaseRepository().Delete<DataDictEntity>(idArr);
         }
         #endregion

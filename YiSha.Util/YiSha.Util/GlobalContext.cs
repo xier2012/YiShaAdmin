@@ -4,8 +4,10 @@ using System.Text;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
-using YiSha.Util.Model;
 using Microsoft.AspNetCore.StaticFiles;
+using Microsoft.Extensions.Hosting;
+using YiSha.Util.Model;
+using Microsoft.AspNetCore.Http;
 
 namespace YiSha.Util
 {
@@ -23,7 +25,7 @@ namespace YiSha.Util
 
         public static IConfiguration Configuration { get; set; }
 
-        public static IHostingEnvironment HostingEnvironment { get; set; }
+        public static IWebHostEnvironment HostingEnvironment { get; set; }
 
         public static SystemConfig SystemConfig { get; set; }
 
@@ -37,14 +39,14 @@ namespace YiSha.Util
         /// 程序启动时，记录目录
         /// </summary>
         /// <param name="env"></param>
-        public static void LogWhenStart(IHostingEnvironment env)
+        public static void LogWhenStart(IWebHostEnvironment env)
         {
             StringBuilder sb = new StringBuilder();
-            sb.AppendLine("程序启动");
-            sb.AppendLine("ContentRootPath:" + env.ContentRootPath);
-            sb.AppendLine("WebRootPath:" + env.WebRootPath);
-            sb.AppendLine("IsDevelopment:" + env.IsDevelopment());
-            LogHelper.WriteWithTime(sb.ToString());
+            sb.Append("程序启动");
+            sb.Append(" |ContentRootPath:" + env.ContentRootPath);
+            sb.Append(" |WebRootPath:" + env.WebRootPath);
+            sb.Append(" |IsDevelopment:" + env.IsDevelopment());
+            LogHelper.Debug(sb.ToString());
         }
 
         /// <summary>

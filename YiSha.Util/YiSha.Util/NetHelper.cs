@@ -1,5 +1,4 @@
-﻿
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Net;
@@ -39,7 +38,7 @@ namespace YiSha.Util
                 }
                 catch (Exception ex)
                 {
-                    LogHelper.WriteWithTime(ex);
+                    LogHelper.Error(ex);
                 }
                 return result;
             }
@@ -60,7 +59,7 @@ namespace YiSha.Util
             }
             catch (Exception ex)
             {
-                LogHelper.WriteWithTime(ex);
+                LogHelper.Error(ex);
             }
             return string.Empty;
         }
@@ -79,7 +78,7 @@ namespace YiSha.Util
             }
             catch (Exception ex)
             {
-                LogHelper.WriteWithTime(ex);
+                LogHelper.Error(ex);
             }
             return string.Empty;
         }
@@ -98,7 +97,7 @@ namespace YiSha.Util
             }
             catch (Exception ex)
             {
-                LogHelper.WriteWithTime(ex);
+                LogHelper.Error(ex);
             }
             return ip;
         }
@@ -120,53 +119,13 @@ namespace YiSha.Util
                         ip = HttpContext.Request.Headers["X-Forwarded-For"].ToString();
                     }
                 }
-                return ip; 
+                return ip;
             }
             catch (Exception ex)
             {
-                LogHelper.WriteWithTime(ex);
+                LogHelper.Error(ex);
             }
             return string.Empty;
-        }
-
-        public static string Host
-        {
-            get
-            {
-                try
-                {
-                    // return HttpContext.Current == null ? Dns.GetHostName() : GetWebClientHostName();
-                    return string.Empty;
-                }
-                catch (Exception ex)
-                {
-                    LogHelper.WriteWithTime(ex);
-                }
-                return string.Empty;
-            }
-        }
-
-        private static string GetWebClientHostName()
-        {
-            string result = string.Empty;
-            try
-            {
-                //if (!HttpContext.Current.Request.IsLocal)
-                //{
-                //    return string.Empty;
-                //}
-                string ip = GetWebRemoteIp();
-                result = Dns.GetHostEntry(IPAddress.Parse(ip)).HostName;
-                if (result == "localhost.localdomain")
-                {
-                    result = Dns.GetHostName();
-                }
-            }
-            catch (Exception ex)
-            {
-                LogHelper.WriteWithTime(ex);
-            }
-            return result;
         }
 
         public static string Browser
@@ -176,32 +135,12 @@ namespace YiSha.Util
                 try
                 {
                     var browser = HttpContext.Request.Headers["User-Agent"];
-
-                    var agent = UserAgent.ToString();
-
-                    var ie = new InternetExplorer(agent);
-                    if (ie.Type == BrowserType.IE)
-                        return string.Format("{0} {1}", ie.Type.ToString(), ie.Version);
-                    var firefox = new Firefox(agent);
-                    if (firefox.Type == BrowserType.Firefox)
-                        return string.Format("{0} {1}", firefox.Type.ToString(), firefox.Version);
-                    var edge = new Edge(agent);
-                    if (edge.Type == BrowserType.Edge)
-                        return string.Format("{0} {1}", edge.Type.ToString(), edge.Version);
-                    var opera = new Opera(agent);
-                    if (opera.Type == BrowserType.Opera)
-                        return string.Format("{0} {1}", opera.Type.ToString(), opera.Version);
-                    var chrome = new Chrome(agent);
-                    if (chrome.Type == BrowserType.Chrome)
-                        return string.Format("{0} {1}", chrome.Type.ToString(), chrome.Version);
-                    var safari = new Safari(agent);
-                    if (safari.Type == BrowserType.Safari)
-                        return string.Format("{0} {1}", safari.Type.ToString(), safari.Version);
-                    return string.Empty;
+                    var agent = UserAgent.ParseToString();
+                    return BrowserHelper.GetBrwoserInfo(agent);
                 }
                 catch (Exception ex)
                 {
-                    LogHelper.WriteWithTime(ex);
+                    LogHelper.Error(ex);
                 }
                 return string.Empty;
             }
@@ -218,7 +157,7 @@ namespace YiSha.Util
                 }
                 catch (Exception ex)
                 {
-                    LogHelper.WriteWithTime(ex);
+                    LogHelper.Error(ex);
                 }
                 return userAgent;
             }
@@ -297,7 +236,7 @@ namespace YiSha.Util
             }
             catch (Exception ex)
             {
-                LogHelper.WriteWithTime(ex);
+                LogHelper.Error(ex);
             }
             return osVersion;
         }

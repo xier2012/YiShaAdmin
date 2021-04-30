@@ -15,6 +15,7 @@ using YiSha.Util.Model;
 using YiSha.Entity.SystemManage;
 using YiSha.Enum.SystemManage;
 using YiSha.Business.Cache;
+using YiSha.Entity;
 
 namespace YiSha.CodeGenerator.Template
 {
@@ -25,17 +26,15 @@ namespace YiSha.CodeGenerator.Template
         {
             path = GetProjectRootPath(path);
 
-            string tableNameUpper = CommonHelper.ConvertToUppercase(tableName);
-            List<string> tableFieldUpperList = tableFieldList.Select(p => CommonHelper.ConvertToUppercase(p)).ToList();
             int defaultField = 2; // 默认显示2个字段
 
             BaseConfigModel baseConfigModel = new BaseConfigModel();
             baseConfigModel.TableName = tableName;
-            baseConfigModel.TableNameUpper = tableNameUpper;
+            baseConfigModel.TableNameUpper = tableName;
 
             #region FileConfigModel
             baseConfigModel.FileConfig = new FileConfigModel();
-            baseConfigModel.FileConfig.ClassPrefix = CommonHelper.GetClassNamePrefix(tableName);
+            baseConfigModel.FileConfig.ClassPrefix = TableMappingHelper.GetClassNamePrefix(tableName);
             baseConfigModel.FileConfig.ClassDescription = tableDescription;
             baseConfigModel.FileConfig.CreateName = userName;
             baseConfigModel.FileConfig.CreateDate = DateTime.Now.ToString("yyyy-MM-dd HH:mm");
@@ -50,22 +49,20 @@ namespace YiSha.CodeGenerator.Template
             baseConfigModel.FileConfig.PageFormName = string.Format("{0}Form", baseConfigModel.FileConfig.ClassPrefix);
             #endregion
 
-            #region OutputConfigModel
+            #region OutputConfigModel          
             baseConfigModel.OutputConfig = new OutputConfigModel();
             baseConfigModel.OutputConfig.OutputModule = string.Empty;
-            if (GlobalContext.SystemConfig.Debug)
+            baseConfigModel.OutputConfig.OutputEntity = Path.Combine(path, "YiSha.Entity");
+            baseConfigModel.OutputConfig.OutputBusiness = Path.Combine(path, "YiSha.Business");
+            baseConfigModel.OutputConfig.OutputWeb = Path.Combine(path, "YiSha.Web", "YiSha.Admin.Web");
+            string areasModule = Path.Combine(baseConfigModel.OutputConfig.OutputWeb, "Areas");
+            if (Directory.Exists(areasModule))
             {
-                baseConfigModel.OutputConfig.OutputEntity = string.Format("{0}\\YiSha.Entity", path);
-                baseConfigModel.OutputConfig.OutputBusiness = string.Format("{0}\\YiSha.Business", path);
-                baseConfigModel.OutputConfig.OutputWeb = string.Format("{0}\\YiSha.Web\\YiSha.Admin.Web", path);
-                baseConfigModel.OutputConfig.ModuleList = Directory.GetDirectories(baseConfigModel.OutputConfig.OutputWeb + "\\" + "Areas").Select(p => p.Substring(p.LastIndexOf('\\') + 1)).ToList();
+                baseConfigModel.OutputConfig.ModuleList = Directory.GetDirectories(areasModule).Select(p => Path.GetFileName(p)).Where(p => p != "DemoManage").ToList();
             }
             else
             {
-                baseConfigModel.OutputConfig.OutputEntity = string.Format("{0}\\CodeGenerator", path);
-                baseConfigModel.OutputConfig.OutputBusiness = string.Format("{0}\\CodeGenerator", path);
-                baseConfigModel.OutputConfig.OutputWeb = string.Format("{0}", path);
-                baseConfigModel.OutputConfig.ModuleList = new List<string> { "DemoManage" };
+                baseConfigModel.OutputConfig.ModuleList = new List<string> { "TestManage" };
             }
             #endregion
 
@@ -75,14 +72,14 @@ namespace YiSha.CodeGenerator.Template
             baseConfigModel.PageIndex.IsPagination = 1;
             baseConfigModel.PageIndex.ButtonList = new List<string>();
             baseConfigModel.PageIndex.ColumnList = new List<string>();
-            baseConfigModel.PageIndex.ColumnList.AddRange(tableFieldUpperList.Take(defaultField));
+            baseConfigModel.PageIndex.ColumnList.AddRange(tableFieldList.Take(defaultField));
             #endregion
 
             #region PageFormModel
             baseConfigModel.PageForm = new PageFormModel();
             baseConfigModel.PageForm.ShowMode = 1;
             baseConfigModel.PageForm.FieldList = new List<string>();
-            baseConfigModel.PageForm.FieldList.AddRange(tableFieldUpperList.Take(defaultField));
+            baseConfigModel.PageForm.FieldList.AddRange(tableFieldList.Take(defaultField));
             #endregion
 
             return baseConfigModel;
@@ -104,8 +101,8 @@ namespace YiSha.CodeGenerator.Template
 
             SetClassDescription("实体类", baseConfigModel, sb);
 
-            sb.AppendLine("     [Table(\"" + baseConfigModel.TableName + "\")]");
-            sb.AppendLine("    public class " + baseConfigModel.FileConfig.EntityName + " : BaseEntity");
+            sb.AppendLine("    [Table(\"" + baseConfigModel.TableName + "\")]");
+            sb.AppendLine("    public class " + baseConfigModel.FileConfig.EntityName + " : " + GetBaseEntity(dt));
             sb.AppendLine("    {");
 
             string column = string.Empty;
@@ -114,11 +111,16 @@ namespace YiSha.CodeGenerator.Template
             foreach (DataRow dr in dt.Rows)
             {
                 column = dr["TableColumn"].ToString();
+                if (BaseField.BaseFieldList.Where(p => p == column).Any())
+                {
+                    // 基础字段不需要生成，继承合适的BaseEntity即可。
+                    continue;
+                }
+
                 remark = dr["Remark"].ToString();
                 datatype = dr["Datatype"].ToString();
 
-                column = CommonHelper.ConvertToUppercase(column);
-                datatype = DatatypeConvert.GetDatatype(datatype);
+                datatype = TableMappingHelper.GetPropertyDatatype(datatype);
 
                 sb.AppendLine("        /// <summary>");
                 sb.AppendLine("        /// " + remark);
@@ -170,8 +172,10 @@ namespace YiSha.CodeGenerator.Template
         #endregion
 
         #region BuildService
-        public string BuildService(BaseConfigModel baseConfigModel)
+        public string BuildService(BaseConfigModel baseConfigModel, DataTable dt)
         {
+            string baseEntity = GetBaseEntity(dt);
+
             StringBuilder sb = new StringBuilder();
             string method = string.Empty;
             sb.AppendLine("using System;");
@@ -224,19 +228,19 @@ namespace YiSha.CodeGenerator.Template
             sb.AppendLine("        {");
             sb.AppendLine("            if (entity.Id.IsNullOrZero())");
             sb.AppendLine("            {");
-            sb.AppendLine("                await entity.Create();");
+            sb.AppendLine("                " + GetSaveFormCreate(baseEntity));
             sb.AppendLine("                await this.BaseRepository().Insert(entity);");
             sb.AppendLine("            }");
             sb.AppendLine("            else");
             sb.AppendLine("            {");
-            sb.AppendLine("                await entity.Modify();");
+            sb.AppendLine("                " + GetSaveFormModify(baseEntity));
             sb.AppendLine("                await this.BaseRepository().Update(entity);");
             sb.AppendLine("            }");
             sb.AppendLine("        }");
             sb.AppendLine();
             sb.AppendLine("        public async Task DeleteForm(string ids)");
             sb.AppendLine("        {");
-            sb.AppendLine("            long[] idArr = CommonHelper.SplitToArray<long>(ids, ',');");
+            sb.AppendLine("            long[] idArr = TextHelper.SplitToArray<long>(ids, ',');");
             sb.AppendLine("            await this.BaseRepository().Delete<" + baseConfigModel.FileConfig.EntityName + ">(idArr);");
             sb.AppendLine("        }");
             sb.AppendLine("        #endregion");
@@ -282,14 +286,14 @@ namespace YiSha.CodeGenerator.Template
             sb.AppendLine("    public class " + baseConfigModel.FileConfig.BusinessName);
             sb.AppendLine("    {");
 
-            sb.AppendLine("        private " + baseConfigModel.FileConfig.ServiceName + " " + CommonHelper.FirstLetterLowercase(baseConfigModel.FileConfig.ServiceName) + " = new " + baseConfigModel.FileConfig.ServiceName + "();");
+            sb.AppendLine("        private " + baseConfigModel.FileConfig.ServiceName + " " + TableMappingHelper.FirstLetterLowercase(baseConfigModel.FileConfig.ServiceName) + " = new " + baseConfigModel.FileConfig.ServiceName + "();");
             sb.AppendLine();
             sb.AppendLine("        #region 获取数据");
             sb.AppendLine("        public async Task<TData<List<" + baseConfigModel.FileConfig.EntityName + ">>> GetList(" + baseConfigModel.FileConfig.EntityParamName.Replace("Param", "ListParam") + " param)");
             sb.AppendLine("        {");
             sb.AppendLine("            TData<List<" + baseConfigModel.FileConfig.EntityName + ">> obj = new TData<List<" + baseConfigModel.FileConfig.EntityName + ">>();");
-            sb.AppendLine("            obj.Result = await " + CommonHelper.FirstLetterLowercase(baseConfigModel.FileConfig.ServiceName) + ".GetList(param);");
-            sb.AppendLine("            obj.TotalCount = obj.Result.Count;");
+            sb.AppendLine("            obj.Data = await " + TableMappingHelper.FirstLetterLowercase(baseConfigModel.FileConfig.ServiceName) + ".GetList(param);");
+            sb.AppendLine("            obj.Total = obj.Data.Count;");
             sb.AppendLine("            obj.Tag = 1;");
             sb.AppendLine("            return obj;");
             sb.AppendLine("        }");
@@ -297,8 +301,8 @@ namespace YiSha.CodeGenerator.Template
             sb.AppendLine("        public async Task<TData<List<" + baseConfigModel.FileConfig.EntityName + ">>> GetPageList(" + baseConfigModel.FileConfig.EntityParamName.Replace("Param", "ListParam") + " param, Pagination pagination)");
             sb.AppendLine("        {");
             sb.AppendLine("            TData<List<" + baseConfigModel.FileConfig.EntityName + ">> obj = new TData<List<" + baseConfigModel.FileConfig.EntityName + ">>();");
-            sb.AppendLine("            obj.Result = await " + CommonHelper.FirstLetterLowercase(baseConfigModel.FileConfig.ServiceName) + ".GetPageList(param, pagination);");
-            sb.AppendLine("            obj.TotalCount = pagination.TotalCount;");
+            sb.AppendLine("            obj.Data = await " + TableMappingHelper.FirstLetterLowercase(baseConfigModel.FileConfig.ServiceName) + ".GetPageList(param, pagination);");
+            sb.AppendLine("            obj.Total = pagination.TotalCount;");
             sb.AppendLine("            obj.Tag = 1;");
             sb.AppendLine("            return obj;");
             sb.AppendLine("        }");
@@ -306,8 +310,8 @@ namespace YiSha.CodeGenerator.Template
             sb.AppendLine("        public async Task<TData<" + baseConfigModel.FileConfig.EntityName + ">> GetEntity(long id)");
             sb.AppendLine("        {");
             sb.AppendLine("            TData<" + baseConfigModel.FileConfig.EntityName + "> obj = new TData<" + baseConfigModel.FileConfig.EntityName + ">();");
-            sb.AppendLine("            obj.Result = await " + CommonHelper.FirstLetterLowercase(baseConfigModel.FileConfig.ServiceName) + ".GetEntity(id);");
-            sb.AppendLine("            if (obj.Result != null)");
+            sb.AppendLine("            obj.Data = await " + TableMappingHelper.FirstLetterLowercase(baseConfigModel.FileConfig.ServiceName) + ".GetEntity(id);");
+            sb.AppendLine("            if (obj.Data != null)");
             sb.AppendLine("            {");
             sb.AppendLine("                obj.Tag = 1;");
             sb.AppendLine("            }");
@@ -319,8 +323,8 @@ namespace YiSha.CodeGenerator.Template
             sb.AppendLine("        public async Task<TData<string>> SaveForm(" + baseConfigModel.FileConfig.EntityName + " entity)");
             sb.AppendLine("        {");
             sb.AppendLine("            TData<string> obj = new TData<string>();");
-            sb.AppendLine("            await " + CommonHelper.FirstLetterLowercase(baseConfigModel.FileConfig.ServiceName) + ".SaveForm(entity);");
-            sb.AppendLine("            obj.Result = entity.Id.ParseToString();");
+            sb.AppendLine("            await " + TableMappingHelper.FirstLetterLowercase(baseConfigModel.FileConfig.ServiceName) + ".SaveForm(entity);");
+            sb.AppendLine("            obj.Data = entity.Id.ParseToString();");
             sb.AppendLine("            obj.Tag = 1;");
             sb.AppendLine("            return obj;");
             sb.AppendLine("        }");
@@ -328,7 +332,7 @@ namespace YiSha.CodeGenerator.Template
             sb.AppendLine("        public async Task<TData> DeleteForm(string ids)");
             sb.AppendLine("        {");
             sb.AppendLine("            TData obj = new TData();");
-            sb.AppendLine("            await " + CommonHelper.FirstLetterLowercase(baseConfigModel.FileConfig.ServiceName) + ".DeleteForm(ids);");
+            sb.AppendLine("            await " + TableMappingHelper.FirstLetterLowercase(baseConfigModel.FileConfig.ServiceName) + ".DeleteForm(ids);");
             sb.AppendLine("            obj.Tag = 1;");
             sb.AppendLine("            return obj;");
             sb.AppendLine("        }");
@@ -374,7 +378,7 @@ namespace YiSha.CodeGenerator.Template
             sb.AppendLine("    [Area(\"" + baseConfigModel.OutputConfig.OutputModule + "\")]");
             sb.AppendLine("    public class " + baseConfigModel.FileConfig.ControllerName + " :  BaseController");
             sb.AppendLine("    {");
-            sb.AppendLine("        private " + baseConfigModel.FileConfig.BusinessName + " " + CommonHelper.FirstLetterLowercase(baseConfigModel.FileConfig.BusinessName) + " = new " + baseConfigModel.FileConfig.BusinessName + "();");
+            sb.AppendLine("        private " + baseConfigModel.FileConfig.BusinessName + " " + TableMappingHelper.FirstLetterLowercase(baseConfigModel.FileConfig.BusinessName) + " = new " + baseConfigModel.FileConfig.BusinessName + "();");
             sb.AppendLine();
             sb.AppendLine("        #region 视图功能");
             sb.AppendLine("        [AuthorizeFilter(\"" + string.Format("{0}:{1}:{2}", modulePrefix, classPrefix, "view") + "\")]");
@@ -394,7 +398,7 @@ namespace YiSha.CodeGenerator.Template
             sb.AppendLine("        [AuthorizeFilter(\"" + string.Format("{0}:{1}:{2}", modulePrefix, classPrefix, "search") + "\")]");
             sb.AppendLine("        public async Task<ActionResult> GetListJson(" + baseConfigModel.FileConfig.EntityParamName.Replace("Param", "ListParam") + " param)");
             sb.AppendLine("        {");
-            sb.AppendLine("            TData<List<" + baseConfigModel.FileConfig.EntityName + ">> obj = await " + CommonHelper.FirstLetterLowercase(baseConfigModel.FileConfig.BusinessName) + ".GetList(param);");
+            sb.AppendLine("            TData<List<" + baseConfigModel.FileConfig.EntityName + ">> obj = await " + TableMappingHelper.FirstLetterLowercase(baseConfigModel.FileConfig.BusinessName) + ".GetList(param);");
             sb.AppendLine("            return Json(obj);");
             sb.AppendLine("        }");
             sb.AppendLine();
@@ -402,14 +406,14 @@ namespace YiSha.CodeGenerator.Template
             sb.AppendLine("        [AuthorizeFilter(\"" + string.Format("{0}:{1}:{2}", modulePrefix, classPrefix, "search") + "\")]");
             sb.AppendLine("        public async Task<ActionResult> GetPageListJson(" + baseConfigModel.FileConfig.EntityParamName.Replace("Param", "ListParam") + " param, Pagination pagination)");
             sb.AppendLine("        {");
-            sb.AppendLine("            TData<List<" + baseConfigModel.FileConfig.EntityName + ">> obj = await " + CommonHelper.FirstLetterLowercase(baseConfigModel.FileConfig.BusinessName) + ".GetPageList(param, pagination);");
+            sb.AppendLine("            TData<List<" + baseConfigModel.FileConfig.EntityName + ">> obj = await " + TableMappingHelper.FirstLetterLowercase(baseConfigModel.FileConfig.BusinessName) + ".GetPageList(param, pagination);");
             sb.AppendLine("            return Json(obj);");
             sb.AppendLine("        }");
             sb.AppendLine();
             sb.AppendLine("        [HttpGet]");
             sb.AppendLine("        public async Task<ActionResult> GetFormJson(long id)");
             sb.AppendLine("        {");
-            sb.AppendLine("            TData<" + baseConfigModel.FileConfig.EntityName + "> obj = await " + CommonHelper.FirstLetterLowercase(baseConfigModel.FileConfig.BusinessName) + ".GetEntity(id);");
+            sb.AppendLine("            TData<" + baseConfigModel.FileConfig.EntityName + "> obj = await " + TableMappingHelper.FirstLetterLowercase(baseConfigModel.FileConfig.BusinessName) + ".GetEntity(id);");
             sb.AppendLine("            return Json(obj);");
             sb.AppendLine("        }");
             sb.AppendLine("        #endregion");
@@ -419,7 +423,7 @@ namespace YiSha.CodeGenerator.Template
             sb.AppendLine("        [AuthorizeFilter(\"" + string.Format("{0}:{1}:{2}", modulePrefix, classPrefix, "add") + "," + string.Format("{0}:{1}:{2}", modulePrefix, classPrefix, "edit") + "\")]");
             sb.AppendLine("        public async Task<ActionResult> SaveFormJson(" + baseConfigModel.FileConfig.EntityName + " entity)");
             sb.AppendLine("        {");
-            sb.AppendLine("            TData<string> obj = await " + CommonHelper.FirstLetterLowercase(baseConfigModel.FileConfig.BusinessName) + ".SaveForm(entity);");
+            sb.AppendLine("            TData<string> obj = await " + TableMappingHelper.FirstLetterLowercase(baseConfigModel.FileConfig.BusinessName) + ".SaveForm(entity);");
             sb.AppendLine("            return Json(obj);");
             sb.AppendLine("        }");
             sb.AppendLine();
@@ -427,7 +431,7 @@ namespace YiSha.CodeGenerator.Template
             sb.AppendLine("        [AuthorizeFilter(\"" + string.Format("{0}:{1}:{2}", modulePrefix, classPrefix, "delete") + "\")]");
             sb.AppendLine("        public async Task<ActionResult> DeleteFormJson(string ids)");
             sb.AppendLine("        {");
-            sb.AppendLine("            TData obj = await " + CommonHelper.FirstLetterLowercase(baseConfigModel.FileConfig.BusinessName) + ".DeleteForm(ids);");
+            sb.AppendLine("            TData obj = await " + TableMappingHelper.FirstLetterLowercase(baseConfigModel.FileConfig.BusinessName) + ".DeleteForm(ids);");
             sb.AppendLine("            return Json(obj);");
             sb.AppendLine("        }");
             sb.AppendLine("        #endregion");
@@ -461,8 +465,8 @@ namespace YiSha.CodeGenerator.Template
             #region 是否显示搜索
             if (baseConfigModel.PageIndex.IsSearch == 1)
             {
-                string fieldName = CommonHelper.GetCustomValueWhenEmpty(baseConfigModel.PageIndex.ColumnList.FirstOrDefault(), "fieldName");
-                string fieldNameLower = CommonHelper.FirstLetterLowercase(fieldName);
+                string fieldName = TextHelper.GetCustomValue(baseConfigModel.PageIndex.ColumnList.FirstOrDefault(), "fieldName");
+                string fieldNameLower = TableMappingHelper.FirstLetterLowercase(fieldName);
                 sb.AppendLine("        <div id=\"searchDiv\" class=\"col-sm-12 search-collapse\">");
                 sb.AppendLine("            <div class=\"select-list\">");
                 sb.AppendLine("                <ul>");
@@ -614,7 +618,7 @@ namespace YiSha.CodeGenerator.Template
             #endregion
             StringBuilder sb = new StringBuilder();
             sb.AppendLine("@{");
-            sb.AppendLine("    Layout = \"~/Views/Shared/_SaveWhite.cshtml\";");
+            sb.AppendLine("    Layout = \"~/Views/Shared/_FormWhite.cshtml\";");
             sb.AppendLine("}");
             sb.AppendLine("");
             sb.AppendLine("<div class=\"wrapper animated fadeInRight\">");
@@ -631,7 +635,7 @@ namespace YiSha.CodeGenerator.Template
                         for (int i = 0; i < baseConfigModel.PageForm.FieldList.Count; i++)
                         {
                             field = baseConfigModel.PageForm.FieldList[i];
-                            fieldLower = CommonHelper.FirstLetterLowercase(field);
+                            fieldLower = TableMappingHelper.FirstLetterLowercase(field);
 
                             sb.AppendLine("        <div class=\"form-group\">");
                             sb.AppendLine("            <label class=\"col-sm-3 control-label \">" + field + (i == 0 ? "<font class=\"red\"> *</font>" : string.Empty) + "</label>");
@@ -646,7 +650,7 @@ namespace YiSha.CodeGenerator.Template
                         for (int i = 0; i < baseConfigModel.PageForm.FieldList.Count; i++)
                         {
                             field = baseConfigModel.PageForm.FieldList[i];
-                            fieldLower = CommonHelper.FirstLetterLowercase(field);
+                            fieldLower = TableMappingHelper.FirstLetterLowercase(field);
 
                             if (i % 2 == 0)
                             {
@@ -678,7 +682,7 @@ namespace YiSha.CodeGenerator.Template
             sb.AppendLine("");
             sb.AppendLine("        $('#form').validate({");
             sb.AppendLine("            rules: {");
-            sb.AppendLine("                " + CommonHelper.GetCustomValueWhenEmpty(CommonHelper.FirstLetterLowercase(baseConfigModel.PageForm.FieldList.FirstOrDefault()), "fieldName") + ": { required: true }");
+            sb.AppendLine("                " + TextHelper.GetCustomValue(TableMappingHelper.FirstLetterLowercase(baseConfigModel.PageForm.FieldList.FirstOrDefault()), "fieldName") + ": { required: true }");
             sb.AppendLine("            }");
             sb.AppendLine("        });");
             sb.AppendLine("    });");
@@ -690,7 +694,7 @@ namespace YiSha.CodeGenerator.Template
             sb.AppendLine("                type: 'get',");
             sb.AppendLine("                success: function (obj) {");
             sb.AppendLine("                    if (obj.Tag == 1) {");
-            sb.AppendLine("                        $('#form').setWebControls(obj.Result);");
+            sb.AppendLine("                        $('#form').setWebControls(obj.Data);");
             sb.AppendLine("                    }");
             sb.AppendLine("                }");
             sb.AppendLine("            });");
@@ -765,7 +769,7 @@ namespace YiSha.CodeGenerator.Template
             if (!string.IsNullOrEmpty(param["CodeEntity"].ParseToString()))
             {
                 string codeEntity = HttpUtility.HtmlDecode(param["CodeEntity"].ToString());
-                string codePath = baseConfigModel.OutputConfig.OutputEntity + "\\YiSha.Entity\\" + baseConfigModel.OutputConfig.OutputModule + "\\" + baseConfigModel.FileConfig.EntityName + ".cs";
+                string codePath = Path.Combine(baseConfigModel.OutputConfig.OutputEntity, "YiSha.Entity", baseConfigModel.OutputConfig.OutputModule, baseConfigModel.FileConfig.EntityName + ".cs");
                 if (!File.Exists(codePath))
                 {
                     FileHelper.CreateFile(codePath, codeEntity);
@@ -778,7 +782,7 @@ namespace YiSha.CodeGenerator.Template
             if (!param["CodeEntityParam"].IsEmpty())
             {
                 string codeListEntity = HttpUtility.HtmlDecode(param["CodeEntityParam"].ToString());
-                string codePath = baseConfigModel.OutputConfig.OutputEntity + "\\YiSha.Model\\Param\\" + baseConfigModel.OutputConfig.OutputModule + "\\" + baseConfigModel.FileConfig.EntityParamName + ".cs";
+                string codePath = Path.Combine(baseConfigModel.OutputConfig.OutputEntity, "YiSha.Model", "Param", baseConfigModel.OutputConfig.OutputModule, baseConfigModel.FileConfig.EntityParamName + ".cs");
                 if (!File.Exists(codePath))
                 {
                     FileHelper.CreateFile(codePath, codeListEntity);
@@ -791,7 +795,7 @@ namespace YiSha.CodeGenerator.Template
             if (!param["CodeService"].IsEmpty())
             {
                 string codeService = HttpUtility.HtmlDecode(param["CodeService"].ToString());
-                string codePath = baseConfigModel.OutputConfig.OutputBusiness + "\\YiSha.Service\\" + baseConfigModel.OutputConfig.OutputModule + "\\" + baseConfigModel.FileConfig.ServiceName + ".cs";
+                string codePath = Path.Combine(baseConfigModel.OutputConfig.OutputBusiness, "YiSha.Service", baseConfigModel.OutputConfig.OutputModule, baseConfigModel.FileConfig.ServiceName + ".cs");
                 if (!File.Exists(codePath))
                 {
                     FileHelper.CreateFile(codePath, codeService);
@@ -804,7 +808,7 @@ namespace YiSha.CodeGenerator.Template
             if (!param["CodeBusiness"].IsEmpty())
             {
                 string codeBusiness = HttpUtility.HtmlDecode(param["CodeBusiness"].ToString());
-                string codePath = baseConfigModel.OutputConfig.OutputBusiness + "\\YiSha.Business\\" + baseConfigModel.OutputConfig.OutputModule + "\\" + baseConfigModel.FileConfig.BusinessName + ".cs";
+                string codePath = Path.Combine(baseConfigModel.OutputConfig.OutputBusiness, "YiSha.Business", baseConfigModel.OutputConfig.OutputModule, baseConfigModel.FileConfig.BusinessName + ".cs");
                 if (!File.Exists(codePath))
                 {
                     FileHelper.CreateFile(codePath, codeBusiness);
@@ -817,7 +821,7 @@ namespace YiSha.CodeGenerator.Template
             if (!param["CodeController"].IsEmpty())
             {
                 string codeController = HttpUtility.HtmlDecode(param["CodeController"].ToString());
-                string codePath = baseConfigModel.OutputConfig.OutputWeb + "\\Areas\\" + baseConfigModel.OutputConfig.OutputModule + "\\Controllers\\" + baseConfigModel.FileConfig.ControllerName + ".cs";
+                string codePath = Path.Combine(baseConfigModel.OutputConfig.OutputWeb, "Areas", baseConfigModel.OutputConfig.OutputModule, "Controllers", baseConfigModel.FileConfig.ControllerName + ".cs");
                 if (!File.Exists(codePath))
                 {
                     FileHelper.CreateFile(codePath, codeController);
@@ -830,7 +834,7 @@ namespace YiSha.CodeGenerator.Template
             if (!param["CodeIndex"].IsEmpty())
             {
                 string codeIndex = HttpUtility.HtmlDecode(param["CodeIndex"].ToString());
-                string codePath = baseConfigModel.OutputConfig.OutputWeb + "\\Areas\\" + baseConfigModel.OutputConfig.OutputModule + "\\Views\\" + baseConfigModel.FileConfig.ClassPrefix + "\\" + baseConfigModel.FileConfig.PageIndexName + ".cshtml";
+                string codePath = Path.Combine(baseConfigModel.OutputConfig.OutputWeb, "Areas", baseConfigModel.OutputConfig.OutputModule, "Views", baseConfigModel.FileConfig.ClassPrefix, baseConfigModel.FileConfig.PageIndexName + ".cshtml");
                 if (!File.Exists(codePath))
                 {
                     FileHelper.CreateFile(codePath, codeIndex);
@@ -888,7 +892,7 @@ namespace YiSha.CodeGenerator.Template
             if (!param["CodeForm"].IsEmpty())
             {
                 string codeSave = HttpUtility.HtmlDecode(param["CodeForm"].ToString());
-                string codePath = baseConfigModel.OutputConfig.OutputWeb + "\\Areas\\" + baseConfigModel.OutputConfig.OutputModule + "\\Views\\" + baseConfigModel.FileConfig.ClassPrefix + "\\" + baseConfigModel.FileConfig.PageFormName + ".cshtml";
+                string codePath = Path.Combine(baseConfigModel.OutputConfig.OutputWeb, "Areas", baseConfigModel.OutputConfig.OutputModule, "Views", baseConfigModel.FileConfig.ClassPrefix, baseConfigModel.FileConfig.PageFormName + ".cshtml");
                 if (!File.Exists(codePath))
                 {
                     FileHelper.CreateFile(codePath, codeSave);
@@ -959,7 +963,90 @@ namespace YiSha.CodeGenerator.Template
         {
             return baseConfigModel.OutputConfig.OutputModule.Replace("Manage", string.Empty).ToLower();
         }
-        #endregion
 
+        private string GetBaseEntity(DataTable dt)
+        {
+            string entity = string.Empty;
+            var columnList = dt.AsEnumerable().Select(p => p["TableColumn"].ParseToString()).ToList();
+
+            bool id = columnList.Where(p => p == "Id").Any();
+            bool baseIsDelete = columnList.Where(p => p == "BaseIsDelete").Any();
+            bool baseVersion = columnList.Where(p => p == "BaseVersion").Any();
+            bool baseModifyTime = columnList.Where(p => p == "BaseModifyTime").Any();
+            bool baseModifierId = columnList.Where(p => p == "BaseModifierId").Any();
+            bool baseCreateTime = columnList.Where(p => p == "BaseCreateTime").Any();
+            bool baseCreatorId = columnList.Where(p => p == "BaseCreatorId").Any();
+
+            if (!id)
+            {
+                throw new Exception("数据库表必须有主键Id字段");
+            }
+            if (baseIsDelete && baseVersion && baseModifyTime && baseModifierId && baseCreateTime && baseCreatorId)
+            {
+                entity = "BaseExtensionEntity";
+            }
+            else if (baseVersion && baseModifyTime && baseModifierId && baseCreateTime && baseCreatorId)
+            {
+                entity = "BaseModifyEntity";
+            }
+            else if (baseCreateTime && baseCreatorId)
+            {
+                entity = "BaseCreateEntity";
+            }
+            else
+            {
+                entity = "BaseEntity";
+            }
+            return entity;
+        }
+
+        private string GetSaveFormCreate(string entity)
+        {
+            string line = string.Empty;
+            switch (entity)
+            {
+                case "BaseEntity":
+                    line = "entity.Create();";
+                    break;
+
+                case "BaseCreateEntity":
+                    line = "await entity.Create();";
+                    break;
+
+                case "BaseModifyEntity":
+                    line = "await entity.Create();";
+                    break;
+
+                case "BaseExtensionEntity":
+                    line = "await entity.Create();";
+                    break;
+            }
+            return line;
+        }
+
+        private string GetSaveFormModify(string entity)
+        {
+            string line = string.Empty;
+            switch (entity)
+            {
+                case "BaseEntity":
+                    line = string.Empty;
+                    break;
+
+                case "BaseCreateEntity":
+                    line = string.Empty;
+                    break;
+
+                case "BaseModifyEntity":
+                    line = "await entity.Modify();";
+                    break;
+
+                case "BaseExtensionEntity":
+                    line = "await entity.Modify();";
+                    break;
+            }
+            return line;
+        }
+        #endregion
     }
 }

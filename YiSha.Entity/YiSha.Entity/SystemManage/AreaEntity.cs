@@ -5,8 +5,8 @@ using YiSha.Util;
 
 namespace YiSha.Entity.SystemManage
 {
-    [Table("sys_area")]
-    public class AreaEntity : BaseEntity
+    [Table("SysArea")]
+    public class AreaEntity : BaseExtensionEntity
     {
         /// <summary>
         /// 
@@ -35,7 +35,10 @@ namespace YiSha.Entity.SystemManage
         public int? AreaLevel { get; set; }
     }
 
-    public class BaseAreaEntity : BaseEntity
+    /// <summary>
+    /// 此类给其他需要省市县的业务表继承
+    /// </summary>
+    public class BaseAreaEntity : BaseExtensionEntity
     {
         /// <summary>
         /// 省份ID
@@ -60,7 +63,7 @@ namespace YiSha.Entity.SystemManage
         [NotMapped]
         public string CityName { get; set; }
         [NotMapped]
-        public string CountyName { get; set; }
+        public string CountryName { get; set; }
         [NotMapped]
         public string AreaId { get; set; }
     }

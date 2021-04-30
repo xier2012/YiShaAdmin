@@ -4,7 +4,6 @@ using System.Linq;
 using System.Threading.Tasks;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
-using Senparc.Weixin.WxOpen.AdvancedAPIs.Sns;
 using YiSha.Business.OrganizationManage;
 using YiSha.Entity.OrganizationManage;
 using YiSha.Enum;
@@ -22,21 +21,7 @@ namespace YiSha.Admin.WebApi.Controllers
     {
         private UserBLL userBLL = new UserBLL();
 
-        #region 获取数据
-        /// <summary>
-        /// 获取WxOpenId
-        /// </summary>
-        /// <param name="code"></param>
-        /// <returns></returns>
-        [HttpGet]
-        public async Task<TData<WeiXinInfo>> GetWxOpenId([FromQuery] string code)
-        {
-            TData<WeiXinInfo> obj = new TData<WeiXinInfo>();
-            var result = await SnsApi.JsCode2JsonAsync(GlobalContext.SystemConfig.AppId, GlobalContext.SystemConfig.AppSecret, code);
-            obj.Result = new WeiXinInfo { OpenId = result.openid, UnionId = result.unionid };
-            obj.Tag = 1;
-            return obj;
-        }
+        #region 获取数据       
         #endregion
 
         #region 提交数据
@@ -53,9 +38,9 @@ namespace YiSha.Admin.WebApi.Controllers
             TData<UserEntity> userObj = await userBLL.CheckLogin(userName, password, (int)PlatformEnum.WebApi);
             if (userObj.Tag == 1)
             {
-                await new UserBLL().UpdateUser(userObj.Result);
-                await Operator.Instance.AddCurrent(userObj.Result.ApiToken);
-                obj.Result = await Operator.Instance.Current(userObj.Result.ApiToken);
+                await new UserBLL().UpdateUser(userObj.Data);
+                await Operator.Instance.AddCurrent(userObj.Data.ApiToken);
+                obj.Data = await Operator.Instance.Current(userObj.Data.ApiToken);
             }
             obj.Tag = userObj.Tag;
             obj.Message = userObj.Message;

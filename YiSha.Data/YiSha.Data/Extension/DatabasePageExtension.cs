@@ -1,113 +1,128 @@
 ﻿using System;
-using System.Collections.Generic;
-using System.Data.Common;
-using System.Linq;
 using System.Text;
-using System.Threading.Tasks;
+using System.Data.Common;
+using YiSha.Util;
 
 namespace YiSha.Data
 {
     public class DatabasePageExtension
     {
-        public StringBuilder SqlPageSql(string strSql, DbParameter[] dbParameter, string orderField, bool isAsc, int pageSize, int pageIndex)
+        public static StringBuilder SqlServerPageSql(string strSql, DbParameter[] dbParameter, string sort, bool isAsc, int pageSize, int pageIndex)
         {
+            CheckSqlParam(sort);
+
             StringBuilder sb = new StringBuilder();
             if (pageIndex == 0)
             {
                 pageIndex = 1;
             }
-            int num = (pageIndex - 1) * pageSize;
-            int num1 = (pageIndex) * pageSize;
-            string OrderBy = "";
+            int startNum = (pageIndex - 1) * pageSize;
+            int endNum = (pageIndex) * pageSize;
+            string orderBy = string.Empty;
 
-            if (!string.IsNullOrEmpty(orderField))
+            if (!string.IsNullOrEmpty(sort))
             {
-                if (orderField.ToUpper().IndexOf("ASC") + orderField.ToUpper().IndexOf("DESC") > 0)
+                if (sort.ToUpper().IndexOf("ASC") + sort.ToUpper().IndexOf("DESC") > 0)
                 {
-                    OrderBy = " Order By " + orderField;
+                    orderBy = " ORDER BY " + sort;
                 }
                 else
                 {
-                    OrderBy = " Order By " + orderField + " " + (isAsc ? "ASC" : "DESC");
+                    orderBy = " ORDER BY " + sort + " " + (isAsc ? "ASC" : "DESC");
                 }
             }
             else
             {
-                OrderBy = "order by (select 0)";
+                orderBy = "ORDERE BY (SELECT 0)";
             }
-            sb.Append("Select * From (Select ROW_NUMBER() Over (" + OrderBy + ")");
-            sb.Append(" As rowNum, * From (" + strSql + ")  T ) As N Where rowNum > " + num + " And rowNum <= " + num1 + "");
+            sb.Append("SELECT * FROM (SELECT ROW_NUMBER() Over (" + orderBy + ")");
+            sb.Append(" AS ROWNUM, * From (" + strSql + ") t ) AS N WHERE ROWNUM > " + startNum + " AND ROWNUM <= " + endNum + "");
             return sb;
         }
-        public StringBuilder OraclePageSql(string strSql, DbParameter[] dbParameter, string orderField, bool isAsc, int pageSize, int pageIndex)
+
+        public static StringBuilder OraclePageSql(string strSql, DbParameter[] dbParameter, string sort, bool isAsc, int pageSize, int pageIndex)
         {
+            CheckSqlParam(sort);
+
+            StringBuilder sb = new StringBuilder();
+            if (pageIndex == 0)
+            {
+                pageIndex = 1;
+            }
+            int startNum = (pageIndex - 1) * pageSize;
+            int endNum = (pageIndex) * pageSize;
+            string orderBy = string.Empty;
+
+            if (!string.IsNullOrEmpty(sort))
+            {
+                if (sort.ToUpper().IndexOf("ASC") + sort.ToUpper().IndexOf("DESC") > 0)
+                {
+                    orderBy = " ORDER BY " + sort;
+                }
+                else
+                {
+                    orderBy = " ORDER BY " + sort + " " + (isAsc ? "ASC" : "DESC");
+                }
+            }
+            sb.Append("SELECT * From (SELECT ROWNUM AS n,");
+            sb.Append(" T.* From (" + strSql + orderBy + ") t )  N WHERE n > " + startNum + " AND n <= " + endNum + "");
+            return sb;
+        }
+
+        public static StringBuilder MySqlPageSql(string strSql, DbParameter[] dbParameter, string sort, bool isAsc, int pageSize, int pageIndex)
+        {
+            CheckSqlParam(sort);
+
             StringBuilder sb = new StringBuilder();
             if (pageIndex == 0)
             {
                 pageIndex = 1;
             }
             int num = (pageIndex - 1) * pageSize;
-            int num1 = (pageIndex) * pageSize;
-            string OrderBy = "";
+            string orderBy = string.Empty;
 
-            if (!string.IsNullOrEmpty(orderField))
+            if (!string.IsNullOrEmpty(sort))
             {
-                if (orderField.ToUpper().IndexOf("ASC") + orderField.ToUpper().IndexOf("DESC") > 0)
+                if (sort.ToUpper().IndexOf("ASC") + sort.ToUpper().IndexOf("DESC") > 0)
                 {
-                    OrderBy = " Order By " + orderField;
+                    orderBy = " ORDER BY " + sort;
                 }
                 else
                 {
-                    OrderBy = " Order By " + orderField + " " + (isAsc ? "ASC" : "DESC");
+                    orderBy = " ORDER BY " + sort + " " + (isAsc ? "ASC" : "DESC");
                 }
             }
-            sb.Append("Select * From (Select ROWNUM as n,");
-            sb.Append(" T.* From (" + strSql + OrderBy + ")  T )  N Where n > " + num + " And n <= " + num1 + "");
+            sb.Append(strSql + orderBy);
+            sb.Append(" LIMIT " + num + "," + pageSize + "");
             return sb;
         }
-        public StringBuilder MySqlPageSql(string strSql, DbParameter[] dbParameter, string orderField, bool isAsc, int pageSize, int pageIndex)
-        {
-            StringBuilder sb = new StringBuilder();
-            if (pageIndex == 0)
-            {
-                pageIndex = 1;
-            }
-            int num = (pageIndex - 1) * pageSize;
-            string OrderBy = "";
 
-            if (!string.IsNullOrEmpty(orderField))
-            {
-                if (orderField.ToUpper().IndexOf("ASC") + orderField.ToUpper().IndexOf("DESC") > 0)
-                {
-                    OrderBy = " Order By " + orderField;
-                }
-                else
-                {
-                    OrderBy = " Order By " + orderField + " " + (isAsc ? "ASC" : "DESC");
-                }
-            }
-            sb.Append(strSql + OrderBy);
-            sb.Append(" limit " + num + "," + pageSize + "");
-            return sb;
-        }
-        public string GetCountSql(string strSql)
+        public static string GetCountSql(string strSql)
         {
             string countSql = string.Empty;
             string strSqlCopy = strSql.ToLower();
-            int selectIndex = strSqlCopy.IndexOf("select ");
-            int lastFromIndex = strSqlCopy.LastIndexOf(" from ");
+            int selectIndex = strSqlCopy.IndexOf("SELECT ");
+            int lastFromIndex = strSqlCopy.LastIndexOf(" FROM ");
             if (selectIndex >= 0 && lastFromIndex >= 0)
             {
-                int backFromIndex = strSqlCopy.LastIndexOf(" from ", lastFromIndex);
-                int backSelectIndex = strSqlCopy.LastIndexOf("select ", lastFromIndex);
+                int backFromIndex = strSqlCopy.LastIndexOf(" FROM ", lastFromIndex);
+                int backSelectIndex = strSqlCopy.LastIndexOf("SELECT ", lastFromIndex);
                 if (backSelectIndex == selectIndex)
                 {
-                    countSql = "select count(*) " + strSql.Substring(lastFromIndex);
+                    countSql = "SELECT COUNT(*) " + strSql.Substring(lastFromIndex);
                     return countSql;
                 }
             }
-            countSql = "Select Count(1) From (" + strSql + ") t";
+            countSql = "SELECT COUNT(1) FROM (" + strSql + ") t";
             return countSql;
+        }
+
+        private static void CheckSqlParam(string param)
+        {
+            if (!SecurityHelper.IsSafeSqlParam(param))
+            {
+                throw new ArgumentException("含有Sql注入的参数");
+            }
         }
     }
 }

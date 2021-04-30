@@ -1,5 +1,5 @@
 ﻿@{
-    Layout = "~/Views/Shared/_SaveWhite.cshtml";
+    Layout = "~/Views/Shared/_FormWhite.cshtml";
 }
 
 <div class="wrapper animated fadeInRight">
@@ -89,7 +89,7 @@
                 type: "get",
                 success: function (obj) {
                     if (obj.Tag == 1) {
-                        var result = obj.Result;
+                        var result = obj.Data;
                         $("#form").setWebControls(result);
                     }
                 }
@@ -107,6 +107,8 @@
                 success: function (obj) {
                     if (obj.Tag == 1) {
                         ys.msgSuccess(obj.Message);
+
+                        parent.getForm();
                         parent.layer.close(index);
                     }
                     else {

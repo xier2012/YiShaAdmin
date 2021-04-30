@@ -5,15 +5,17 @@ $(function () {
         $(".check-box").iCheck({
             checkboxClass: 'icheckbox-blue',
             radioClass: 'iradio-blue',
-        })
+        });
     }
+
     // radio 事件绑定
     if ($(".radio-box").length > 0) {
         $(".radio-box").iCheck({
             checkboxClass: 'icheckbox-blue',
             radioClass: 'iradio-blue',
-        })
+        });
     }
+
     // laydate 时间控件绑定
     if ($(".select-time").length > 10) {
         layui.use('laydate', function () {
@@ -56,6 +58,7 @@ $(function () {
             });
         });
     }
+
     // tree 关键字搜索绑定
     if ($("#keyword").length > 0) {
         $("#keyword").bind("focus", function focusKey(e) {
@@ -79,14 +82,28 @@ $(function () {
             $('#gridTable').bootstrapTreeTable('collapseAll');
         }
         expandFlag = expandFlag ? false : true;
-    })
+    });
 
-    // 复选框后按钮样式状态变更
+
+    // bootstraple table 行选中按钮样式状态变更
     $("#gridTable").on("check.bs.table uncheck.bs.table check-all.bs.table uncheck-all.bs.table", function () {
         var ids = $("#gridTable").bootstrapTable("getSelections");
-        $('#btnDelete').toggleClass('disabled', !ids.length);
-        $('#btnEdit').toggleClass('disabled', ids.length != 1);
+        if ($('#btnDelete')) {
+            $('#btnDelete').toggleClass('disabled', !ids.length);
+        }
+        if ($('#btnEdit')) {
+            $('#btnEdit').toggleClass('disabled', ids.length != 1);
+        }
     });
+
+    // select2复选框事件绑定
+    if ($.fn.select2 !== undefined) {
+        $("select.form-control.select2").each(function () {
+            $(this).select2().on("change", function () {
+                $(this).valid();
+            });
+        });
+    }
 
     $("#searchDiv").keyup(function (e) {
         if (e.which === 13) {
@@ -94,20 +111,38 @@ $(function () {
         }
     });
 
+    // 校验按钮权限，没有权限的按钮就隐藏
+    if (top.getButtonAuthority) {
+        var buttonList = [];
+        $('#toolbar').find('a').each(function (i, ele) {
+            buttonList.push(ele.id);
+        });
+        $('.toolbar').find('a').each(function (i, ele) {
+            buttonList.push(ele.id);
+        });
+        var removeButtonList = top.getButtonAuthority(window.location.href, buttonList);
+        if (removeButtonList) {
+            $.each(removeButtonList, function (i, val) {
+                $("#" + val).remove();
+            });
+        }
+    }
+
     // input,select 的id赋值给name，因为jquery.validation验证组件使用的是name
-    $("input:text, input:radio, select").each(function (i, ele) {
+    $("input:text, input:password, input:radio, select").each(function (i, ele) {
         if (ele.id) {
             $(ele).attr("name", ele.id);
         }
-    });    
+    });
 });
 
+// 查询事件调用，给按钮添加disabled
 function resetToolbarStatus() {
     if ($('#btnDelete')) {
-        $('#btnDelete').toggleClass('disabled');
+        $('#btnDelete').addClass('disabled');
     }
     if ($('#btnEdit')) {
-        $('#btnEdit').toggleClass('disabled');
+        $('#btnEdit').addClass('disabled');
     }
 }
 

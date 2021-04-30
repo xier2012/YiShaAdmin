@@ -5,7 +5,11 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 using YiSha.Data;
+using YiSha.Data.EF;
 using YiSha.Data.Repository;
+using YiSha.Entity;
+using YiSha.Entity.OrganizationManage;
+using YiSha.Entity.SystemManage;
 using YiSha.Model.Result.SystemManage;
 using YiSha.Util;
 using YiSha.Util.Model;
@@ -24,7 +28,7 @@ namespace YiSha.Service.SystemManage
             {
                 list = list.Where(p => p.TableName.Contains(tableName));
             }
-            SetTableDetail(list);
+            await SetTableDetail(list);
             return list.ToList();
         }
 
@@ -41,7 +45,7 @@ namespace YiSha.Service.SystemManage
             }
 
             IEnumerable<TableInfo> list = await this.BaseRepository().FindList<TableInfo>(strSql.ToString(), parameter.ToArray(), pagination);
-            SetTableDetail(list);
+            await SetTableDetail(list);
             return list.ToList();
         }
 
@@ -71,41 +75,83 @@ namespace YiSha.Service.SystemManage
             var result = await this.BaseRepository().ExecuteBySql(strSql);
             return result > 0 ? true : false;
         }
+
+        /// <summary>
+        /// 仅用在YiShaAdmin框架里面，同步不同数据库之间的数据，以 MySql 为主库，同步 MySql 的数据到SqlServer和Oracle，保证各个数据库的数据是一样的
+        /// </summary>
+        /// <returns></returns>
+        public async Task SyncDatabase()
+        {
+            #region 同步SqlServer数据库
+            await SyncSqlServerTable<AreaEntity>();
+            await SyncSqlServerTable<AutoJobEntity>();
+            await SyncSqlServerTable<AutoJobLogEntity>();
+            await SyncSqlServerTable<DataDictEntity>();
+            await SyncSqlServerTable<DataDictDetailEntity>();
+            await SyncSqlServerTable<DepartmentEntity>();
+            await SyncSqlServerTable<LogLoginEntity>();
+            await SyncSqlServerTable<MenuEntity>();
+            await SyncSqlServerTable<MenuAuthorizeEntity>();
+            await SyncSqlServerTable<NewsEntity>();
+            await SyncSqlServerTable<PositionEntity>();
+            await SyncSqlServerTable<RoleEntity>();
+            await SyncSqlServerTable<UserEntity>();
+            await SyncSqlServerTable<UserBelongEntity>();
+            #endregion
+        }
+        private async Task SyncSqlServerTable<T>() where T : class, new()
+        {
+            string sqlServerConnectionString = "Server=localhost;Database=YiShaAdmin;User Id=sa;Password=123456;";
+            IEnumerable<T> list = await this.BaseRepository().FindList<T>();
+
+            await new SqlServerDatabase(sqlServerConnectionString).Delete<T>(p => true);
+            await new SqlServerDatabase(sqlServerConnectionString).Insert<T>(list);
+        }
         #endregion
 
         #region 私有方法
+
         /// <summary>
         /// 获取所有表的主键、主键名称、记录数
         /// </summary>
+        /// <param name="list"></param>
         /// <returns></returns>
-        private async Task<List<TableInfo>> GetTableDetailList()
+        private async Task<List<TableInfo>> GetTableDetailList(IEnumerable<TableInfo> list)
         {
             string strSql = @"SELECT t1.TABLE_NAME TableName,t1.TABLE_COMMENT Remark,t1.TABLE_ROWS TableCount,t2.CONSTRAINT_NAME TableKeyName,t2.column_name TableKey
-                                     FROM information_schema.TABLES as t1 
-	                                 LEFT JOIN INFORMATION_SCHEMA.`KEY_COLUMN_USAGE` as t2 on t1.TABLE_NAME = t2.TABLE_NAME
+                                     FROM information_schema.TABLES as t1
+                                     LEFT JOIN INFORMATION_SCHEMA.`KEY_COLUMN_USAGE` as t2 on t1.TABLE_NAME = t2.TABLE_NAME
                                      WHERE t1.TABLE_SCHEMA='" + GetDatabase() + "' AND t2.TABLE_SCHEMA='" + GetDatabase() + "'";
-
-            IEnumerable<TableInfo> list = await this.BaseRepository().FindList<TableInfo>(strSql.ToString());
-            return list.ToList();
+            if (list != null && list.Count() > 0)
+            {
+                strSql += " AND t1.TABLE_NAME in(" + string.Join(",", list.Select(p => "'" + p.TableName + "'")) + ")";//生成 Where In 条件
+            }
+            IEnumerable<TableInfo> result = await BaseRepository().FindList<TableInfo>(strSql.ToString());
+            return result.ToList();
         }
 
         /// <summary>
         /// 赋值表的主键、主键名称、记录数
         /// </summary>
         /// <param name="list"></param>
-        private async void SetTableDetail(IEnumerable<TableInfo> list)
+        private async Task SetTableDetail(IEnumerable<TableInfo> list)
         {
-            List<TableInfo> detailList = await GetTableDetailList();
+            List<TableInfo> detailList = await GetTableDetailList(list);
             foreach (TableInfo table in list)
             {
                 table.TableKey = string.Join(",", detailList.Where(p => p.TableName == table.TableName).Select(p => p.TableKey));
-                table.TableKeyName = detailList.Where(p => p.TableName == table.TableName).Select(p => p.TableKeyName).FirstOrDefault();
-                table.TableCount = detailList.Where(p => p.TableName == table.TableName).Select(p => p.TableCount).FirstOrDefault();
+                var tableInfo = detailList.Where(p => p.TableName == table.TableName).FirstOrDefault();
+                if (tableInfo != null)
+                {
+                    table.TableKeyName = tableInfo.TableKeyName;
+                    table.TableCount = tableInfo.TableCount;
+                    table.Remark = tableInfo.Remark;
+                }
             }
         }
         private string GetDatabase()
         {
-            string database = HtmlHelper.Resove(GlobalContext.Configuration.GetSection("DB:ConnectionString").Value.ToLower(), "database=", ";");
+            string database = HtmlHelper.Resove(GlobalContext.SystemConfig.DBConnectionString, "database=", ";");
             return database;
         }
         #endregion

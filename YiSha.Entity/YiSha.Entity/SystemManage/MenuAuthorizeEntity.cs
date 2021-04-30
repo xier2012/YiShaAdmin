@@ -9,8 +9,8 @@ using YiSha.Util;
 
 namespace YiSha.Entity.SystemManage
 {
-    [Table("sys_menu_authorize")]
-    public class MenuAuthorizeEntity : BaseEntity
+    [Table("SysMenuAuthorize")]
+    public class MenuAuthorizeEntity : BaseCreateEntity
     {
         [JsonConverter(typeof(StringJsonConverter))]
         public long? MenuId { get; set; }

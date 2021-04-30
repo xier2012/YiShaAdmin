@@ -15,7 +15,7 @@
                 </ul>
             </div>
         </div>
-        <div class="btn-group-sm hidden-xs" id="toolbar">
+        <div class="btn-group-sm" id="toolbar">
             <a id="btnDelete" class="btn btn-danger disabled" onclick="deleteForm()"><i class="fa fa-remove"></i> 删除</a>
         </div>
         <div class="col-sm-12 select-table table-striped">
@@ -49,7 +49,7 @@
                 },
                 { field: 'Remark', title: '任务信息' },
                 {
-                    field: 'BaseModifyTime', title: '创建时间', formatter: function (value, row, index) {
+                    field: 'BaseCreateTime', title: '创建时间', formatter: function (value, row, index) {
                         return ys.formatDate(value, "yyyy-MM-dd HH:mm:ss");
                     }
                 }

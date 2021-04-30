@@ -31,7 +31,7 @@ namespace YiSha.Service.OrganizationManage
 
         public async Task<int> GetMaxSort()
         {
-            object result = await this.BaseRepository().FindObject("SELECT MAX(department_sort) FROM sys_department");
+            object result = await this.BaseRepository().FindObject("SELECT MAX(DepartmentSort) FROM SysDepartment");
             int sort = result.ParseToInt();
             sort++;
             return sort;
@@ -87,16 +87,16 @@ namespace YiSha.Service.OrganizationManage
 
         public async Task DeleteForm(string ids)
         {
-            var db = this.BaseRepository().BeginTrans();
+            var db = await this.BaseRepository().BeginTrans();
             try
             {
-                long[] idArr = CommonHelper.SplitToArray<long>(ids, ',');
+                long[] idArr = TextHelper.SplitToArray<long>(ids, ',');
                 await db.Delete<DepartmentEntity>(idArr);
-                await db.Commit();
+                await db.CommitTrans();
             }
             catch
             {
-                db.Rollback();
+                await db.RollbackTrans();
                 throw;
             }
         }

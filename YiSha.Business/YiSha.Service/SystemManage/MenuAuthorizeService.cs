@@ -29,7 +29,7 @@ namespace YiSha.Service.SystemManage
                 }
                 if (!param.AuthorizeIds.IsEmpty())
                 {
-                    long[] authorizeIdArr = CommonHelper.SplitToArray<long>(param.AuthorizeIds, ',');
+                    long[] authorizeIdArr = TextHelper.SplitToArray<long>(param.AuthorizeIds, ',');
                     expression = expression.And(t => authorizeIdArr.Contains(t.AuthorizeId.Value));
                 }
             }
@@ -53,7 +53,6 @@ namespace YiSha.Service.SystemManage
             }
             else
             {
-                await entity.Modify();
                 await this.BaseRepository().Update(entity);
             }
         }

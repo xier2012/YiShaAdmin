@@ -7,8 +7,8 @@ using System.Threading.Tasks;
 
 namespace YiSha.Entity.SystemManage
 {
-    [Table("sys_log_operate")]
-    public class LogOperateEntity : BaseEntity
+    [Table("SysLogOperate")]
+    public class LogOperateEntity : BaseCreateEntity
     {
         public int? LogStatus { get; set; }
         public string IpAddress { get; set; }

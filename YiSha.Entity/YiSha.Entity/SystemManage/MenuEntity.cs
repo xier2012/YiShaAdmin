@@ -9,8 +9,8 @@ using YiSha.Util;
 
 namespace YiSha.Entity.SystemManage
 {
-    [Table("sys_menu")]
-    public class MenuEntity : BaseEntity
+    [Table("SysMenu")]
+    public class MenuEntity : BaseExtensionEntity
     {
         [JsonConverter(typeof(StringJsonConverter))]
         public long? ParentId { get; set; }

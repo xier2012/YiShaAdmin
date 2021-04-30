@@ -36,7 +36,7 @@ namespace YiSha.Service.SystemManage
 
         public async Task<int> GetMaxSort()
         {
-            object result = await this.BaseRepository().FindObject("SELECT MAX(dict_sort) FROM sys_data_dict_detail");
+            object result = await this.BaseRepository().FindObject("SELECT MAX(DictSort) FROM SysDataDictDetail");
             int sort = result.ParseToInt();
             sort++;
             return sort;
@@ -75,7 +75,7 @@ namespace YiSha.Service.SystemManage
 
         public async Task DeleteForm(string ids)
         {
-            long[] idArr = CommonHelper.SplitToArray<long>(ids, ',');
+            long[] idArr = TextHelper.SplitToArray<long>(ids, ',');
             await this.BaseRepository().Delete<DataDictDetailEntity>(idArr);
         }
         #endregion

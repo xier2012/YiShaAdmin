@@ -2,13 +2,12 @@
 using System.Collections.Generic;
 using System.IO;
 using System.IO.Compression;
-using System.Linq;
 using System.Net;
 using System.Net.Security;
 using System.Security.Cryptography.X509Certificates;
 using System.Text;
 using System.Text.RegularExpressions;
-using System.Threading.Tasks;
+using YiSha.Util.Extension;
 
 namespace YiSha.Util
 {
@@ -17,16 +16,31 @@ namespace YiSha.Util
     /// </summary>
     public class HttpHelper
     {
+        #region 是否是网址
+        public static bool IsUrl(string url)
+        {
+            url = url.ParseToString().ToLower();
+            if (url.StartsWith("http://") || url.StartsWith("https://"))
+            {
+                return true;
+            }
+            else
+            {
+                return false;
+            }
+        }
+        #endregion
+
         #region 模拟GET
         /// <summary>
         /// GET请求
         /// </summary>
-        /// <param name="Url">The URL.</param>
+        /// <param name="url">The URL.</param>
         /// <param name="postDataStr">The post data string.</param>
         /// <returns>System.String.</returns>
-        public static string HttpGet(string Url, int timeout = 10 * 1000)
+        public static string HttpGet(string url, int timeout = 10 * 1000)
         {
-            HttpWebRequest request = (HttpWebRequest)WebRequest.Create(Url);
+            HttpWebRequest request = (HttpWebRequest)WebRequest.Create(url);
             request.Method = "GET";
             request.ContentType = "text/html;charset=UTF-8";
             request.Timeout = timeout;
@@ -137,7 +151,7 @@ namespace YiSha.Util
         /// </summary>
         /// <param name="strPostdata">传入的数据Post方式,get方式传NUll或者空字符串都可以</param>
         /// <returns>string类型的响应数据</returns>
-        private HttpResult GetHttpRequestData(HttpItem objhttpitem)
+        private HttpResult GetHttpRequestData(HttpItem httpItem)
         {
             //返回参数
             HttpResult result = new HttpResult();
@@ -175,7 +189,7 @@ namespace YiSha.Util
                     //获取Byte
                     byte[] RawResponse = _stream.ToArray();
                     //是否返回Byte类型数据
-                    if (objhttpitem.ResultType == ResultType.Byte)
+                    if (httpItem.ResultType == ResultType.Byte)
                     {
                         result.ResultByte = RawResponse;
                     }
@@ -224,7 +238,7 @@ namespace YiSha.Util
                 result.Html = "String Error";
                 response = (HttpWebResponse)ex.Response;
             }
-            if (objhttpitem.IsToLower)
+            if (httpItem.IsToLower)
             {
                 result.Html = result.Html.ToLower();
             }
@@ -253,70 +267,70 @@ namespace YiSha.Util
         /// <summary>
         /// 为请求准备参数
         /// </summary>
-        ///<param name="objhttpItem">参数列表</param>
+        ///<param name="httpItem">参数列表</param>
         /// <param name="_Encoding">读取数据时的编码方式</param>
-        private void SetRequest(HttpItem objhttpItem)
+        private void SetRequest(HttpItem httpItem)
         {
             // 验证证书
-            SetCer(objhttpItem);
+            SetCer(httpItem);
             // 设置代理
-            SetProxy(objhttpItem);
+            SetProxy(httpItem);
             //请求方式Get或者Post
-            request.Method = objhttpItem.Method;
-            request.Timeout = objhttpItem.Timeout;
-            request.ReadWriteTimeout = objhttpItem.ReadWriteTimeout;
+            request.Method = httpItem.Method;
+            request.Timeout = httpItem.Timeout;
+            request.ReadWriteTimeout = httpItem.ReadWriteTimeout;
             //Accept
-            request.Accept = objhttpItem.Accept;
+            request.Accept = httpItem.Accept;
             //ContentType返回类型
-            request.ContentType = objhttpItem.ContentType;
+            request.ContentType = httpItem.ContentType;
             //UserAgent客户端的访问类型，包括浏览器版本和操作系统信息
-            request.UserAgent = objhttpItem.UserAgent;
+            request.UserAgent = httpItem.UserAgent;
             // 编码
-            SetEncoding(objhttpItem);
+            SetEncoding(httpItem);
             //设置Cookie
-            SetCookie(objhttpItem);
+            SetCookie(httpItem);
             //来源地址
-            request.Referer = objhttpItem.Referer;
+            request.Referer = httpItem.Referer;
             //是否执行跳转功能
-            request.AllowAutoRedirect = objhttpItem.Allowautoredirect;
+            request.AllowAutoRedirect = httpItem.Allowautoredirect;
             //设置Post数据
-            SetPostData(objhttpItem);
+            SetPostData(httpItem);
             //设置最大连接
-            if (objhttpItem.Connectionlimit > 0)
+            if (httpItem.Connectionlimit > 0)
             {
-                request.ServicePoint.ConnectionLimit = objhttpItem.Connectionlimit;
+                request.ServicePoint.ConnectionLimit = httpItem.Connectionlimit;
             }
         }
         /// <summary>
         /// 设置证书
         /// </summary>
-        /// <param name="objhttpItem"></param>
-        private void SetCer(HttpItem objhttpItem)
+        /// <param name="httpItem"></param>
+        private void SetCer(HttpItem httpItem)
         {
-            if (!string.IsNullOrEmpty(objhttpItem.CerPath))
+            if (!string.IsNullOrEmpty(httpItem.CerPath))
             {
                 //这一句一定要写在创建连接的前面。使用回调的方法进行证书验证。
                 ServicePointManager.ServerCertificateValidationCallback = new RemoteCertificateValidationCallback(CheckValidationResult);
                 //初始化对像，并设置请求的URL地址
-                request = (HttpWebRequest)WebRequest.Create(GetUrl(objhttpItem.URL));
+                request = (HttpWebRequest)WebRequest.Create(GetUrl(httpItem.URL));
                 //创建证书文件
-                X509Certificate objx509 = new X509Certificate(objhttpItem.CerPath);
+                X509Certificate objx509 = new X509Certificate(httpItem.CerPath);
                 //添加到请求里
                 request.ClientCertificates.Add(objx509);
             }
             else
             {
                 //初始化对像，并设置请求的URL地址
-                request = (HttpWebRequest)WebRequest.Create(GetUrl(objhttpItem.URL));
+                request = (HttpWebRequest)WebRequest.Create(GetUrl(httpItem.URL));
             }
         }
         /// <summary>
         /// 设置编码
         /// </summary>
-        /// <param name="objhttpItem">Http参数</param>
-        private void SetEncoding(HttpItem objhttpItem)
+        /// <param name="httpItem">Http参数</param>
+        private void SetEncoding(HttpItem httpItem)
         {
-            if (string.IsNullOrEmpty(objhttpItem.Encoding) || objhttpItem.Encoding.ToLower().Trim() == "null")
+            if (string.IsNullOrEmpty(httpItem.Encoding) || httpItem.Encoding.ToLower().Trim() == "null")
             {
                 //读取数据时的编码方式
                 encoding = null;
@@ -324,49 +338,49 @@ namespace YiSha.Util
             else
             {
                 //读取数据时的编码方式
-                encoding = System.Text.Encoding.GetEncoding(objhttpItem.Encoding);
+                encoding = System.Text.Encoding.GetEncoding(httpItem.Encoding);
             }
         }
         /// <summary>
         /// 设置Cookie
         /// </summary>
-        /// <param name="objhttpItem">Http参数</param>
-        private void SetCookie(HttpItem objhttpItem)
+        /// <param name="httpItem">Http参数</param>
+        private void SetCookie(HttpItem httpItem)
         {
-            if (!string.IsNullOrEmpty(objhttpItem.Cookie))
+            if (!string.IsNullOrEmpty(httpItem.Cookie))
             {
                 //Cookie
-                request.Headers[HttpRequestHeader.Cookie] = objhttpItem.Cookie;
+                request.Headers[HttpRequestHeader.Cookie] = httpItem.Cookie;
             }
             //设置Cookie
-            if (objhttpItem.CookieCollection != null)
+            if (httpItem.CookieCollection != null)
             {
                 request.CookieContainer = new CookieContainer();
-                request.CookieContainer.Add(objhttpItem.CookieCollection);
+                request.CookieContainer.Add(httpItem.CookieCollection);
             }
         }
         /// <summary>
         /// 设置Post数据
         /// </summary>
-        /// <param name="objhttpItem">Http参数</param>
-        private void SetPostData(HttpItem objhttpItem)
+        /// <param name="httpItem">Http参数</param>
+        private void SetPostData(HttpItem httpItem)
         {
             //验证在得到结果时是否有传入数据
             if (request.Method.Trim().ToLower().Contains("post"))
             {
                 //写入Byte类型
-                if (objhttpItem.PostDataType == PostDataType.Byte)
+                if (httpItem.PostDataType == PostDataType.Byte)
                 {
                     //验证在得到结果时是否有传入数据
-                    if (objhttpItem.PostdataByte != null && objhttpItem.PostdataByte.Length > 0)
+                    if (httpItem.PostdataByte != null && httpItem.PostdataByte.Length > 0)
                     {
-                        request.ContentLength = objhttpItem.PostdataByte.Length;
-                        request.GetRequestStream().Write(objhttpItem.PostdataByte, 0, objhttpItem.PostdataByte.Length);
+                        request.ContentLength = httpItem.PostdataByte.Length;
+                        request.GetRequestStream().Write(httpItem.PostdataByte, 0, httpItem.PostdataByte.Length);
                     }
                 }//写入文件
-                else if (objhttpItem.PostDataType == PostDataType.FilePath)
+                else if (httpItem.PostDataType == PostDataType.FilePath)
                 {
-                    StreamReader r = new StreamReader(objhttpItem.Postdata, encoding);
+                    StreamReader r = new StreamReader(httpItem.Postdata, encoding);
                     byte[] buffer = Encoding.Default.GetBytes(r.ReadToEnd());
                     r.Close();
                     request.ContentLength = buffer.Length;
@@ -375,9 +389,9 @@ namespace YiSha.Util
                 else
                 {
                     //验证在得到结果时是否有传入数据
-                    if (!string.IsNullOrEmpty(objhttpItem.Postdata))
+                    if (!string.IsNullOrEmpty(httpItem.Postdata))
                     {
-                        byte[] buffer = Encoding.Default.GetBytes(objhttpItem.Postdata);
+                        byte[] buffer = Encoding.Default.GetBytes(httpItem.Postdata);
                         request.ContentLength = buffer.Length;
                         request.GetRequestStream().Write(buffer, 0, buffer.Length);
                     }
@@ -387,19 +401,19 @@ namespace YiSha.Util
         /// <summary>
         /// 设置代理
         /// </summary>
-        /// <param name="objhttpItem">参数对象</param>
-        private void SetProxy(HttpItem objhttpItem)
+        /// <param name="httpItem">参数对象</param>
+        private void SetProxy(HttpItem httpItem)
         {
-            if (string.IsNullOrEmpty(objhttpItem.ProxyUserName) && string.IsNullOrEmpty(objhttpItem.ProxyPwd) && string.IsNullOrEmpty(objhttpItem.ProxyIp))
+            if (string.IsNullOrEmpty(httpItem.ProxyUserName) && string.IsNullOrEmpty(httpItem.ProxyPwd) && string.IsNullOrEmpty(httpItem.ProxyIp))
             {
                 //不需要设置
             }
             else
             {
                 //设置代理服务器
-                WebProxy myProxy = new WebProxy(objhttpItem.ProxyIp, false);
+                WebProxy myProxy = new WebProxy(httpItem.ProxyIp, false);
                 //建议连接
-                myProxy.Credentials = new NetworkCredential(objhttpItem.ProxyUserName, objhttpItem.ProxyPwd);
+                myProxy.Credentials = new NetworkCredential(httpItem.ProxyUserName, httpItem.ProxyPwd);
                 //给当前请求对象
                 request.Proxy = myProxy;
                 //设置安全凭证
@@ -420,6 +434,7 @@ namespace YiSha.Util
             return true;
         }
         #endregion
+
         #region 普通类型
         /// <summary>    
         /// 传入一个正确或不正确的URl，返回正确的URL
@@ -438,17 +453,18 @@ namespace YiSha.Util
         ///<summary>
         ///采用https协议访问网络,根据传入的URl地址，得到响应的数据字符串。
         ///</summary>
-        ///<param name="objhttpItem">参数列表</param>
+        ///<param name="httpItem">参数列表</param>
         ///<returns>String类型的数据</returns>
-        public HttpResult GetHtml(HttpItem objhttpItem)
+        public HttpResult GetHtml(HttpItem httpItem)
         {
             //准备参数
-            SetRequest(objhttpItem);
+            SetRequest(httpItem);
             //调用专门读取数据的类
-            return GetHttpRequestData(objhttpItem);
+            return GetHttpRequestData(httpItem);
         }
         #endregion
     }
+
     /// <summary>
     /// Http请求参考类 
     /// </summary>
@@ -652,8 +668,8 @@ namespace YiSha.Util
             get { return resulttype; }
             set { resulttype = value; }
         }
-
     }
+
     /// <summary>
     /// Http返回参数类
     /// </summary>
@@ -692,7 +708,6 @@ namespace YiSha.Util
         /// </summary>
         public byte[] ResultByte
         {
-
             get { return resultbyte; }
             set { resultbyte = value; }
         }
@@ -703,7 +718,6 @@ namespace YiSha.Util
             get { return header; }
             set { header = value; }
         }
-
     }
 
     /// <summary>
@@ -711,8 +725,8 @@ namespace YiSha.Util
     /// </summary>
     public enum ResultType
     {
-        String,//表示只返回字符串
-        Byte//表示返回字符串和字节流
+        String, //表示只返回字符串
+        Byte //表示返回字符串和字节流
     }
 
     /// <summary>
@@ -720,8 +734,8 @@ namespace YiSha.Util
     /// </summary>
     public enum PostDataType
     {
-        String,//字符串
-        Byte,//字符串和字节流
-        FilePath//表示传入的是文件
+        String, //字符串
+        Byte, //字符串和字节流
+        FilePath //表示传入的是文件
     }
 }

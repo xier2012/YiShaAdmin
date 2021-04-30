@@ -1,7 +1,7 @@
 ﻿@{
     Layout = "~/Views/Shared/_Index.cshtml";
 }
-@inject Microsoft.AspNetCore.Hosting.IHostingEnvironment HostingEnvironment
+@inject Microsoft.AspNetCore.Hosting.IWebHostEnvironment HostingEnvironment
 @section header{
     @BundlerHelper.Render(HostingEnvironment.ContentRootPath, Url.Content("~/lib/zTree/v3/css/metroStyle/metroStyle.min.css"))
     @BundlerHelper.Render(HostingEnvironment.ContentRootPath, Url.Content("~/lib/zTree/v3/js/ztree.min.js"))
@@ -59,10 +59,11 @@
             </div>
         </div>
 
-        <div id="toolbar" class="btn-group-sm hidden-xs">
+        <div id="toolbar" class="btn-group-sm">
             <a id="btnAdd" class="btn btn-success" onclick="showSaveForm(true)"><i class="fa fa-plus"></i> 新增</a>
             <a id="btnEdit" class="btn btn-primary disabled" onclick="showSaveForm(false)"><i class="fa fa-edit"></i> 修改</a>
             <a id="btnDelete" class="btn btn-danger disabled" onclick="deleteForm()"><i class="fa fa-remove"></i> 删除</a>
+            <a id="btnImport" class="btn btn-info" onclick="importForm()"><i class="fa fa-upload"></i> 导入</a>
             <a id="btnExport" class="btn btn-warning" onclick="exportForm()"><i class="fa fa-download"></i> 导出</a>
         </div>
 
@@ -106,7 +107,9 @@
     function initTree() {
         $('#departmentTree').ysTree({
             url: '@Url.Content("~/OrganizationManage/Department/GetDepartmentTreeListJson")',
+            async: true,
             expandLevel: 2,
+            maxHeight: "700px",
             callback: {
                 onClick: function (event, treeId, treeNode) {
                     $("#departmentId").val(treeNode.id);
@@ -178,8 +181,6 @@
         ys.openDialog({
             title: id > 0 ? "编辑用户" : "添加用户",
             content: '@Url.Content("~/OrganizationManage/User/UserForm")' + '?id=' + id,
-            width: "768px",
-            height: "477px",
             callback: function (index, layero) {
                 var iframeWin = window[layero.find('iframe')[0]['name']];
                 iframeWin.saveForm(index);
@@ -219,7 +220,6 @@
         ys.openDialog({
             title: "重置密码",
             content: '@Url.Content("~/OrganizationManage/User/ResetPassword")' + '?id=' + id,
-            width: "768px",
             height: "220px",
             callback: function (index, layero) {
                 var iframeWin = window[layero.find('iframe')[0]['name']];
@@ -229,8 +229,20 @@
     }
 
     function exportForm() {
-        var url = '@Url.Content("~/OrganizationManage/User/ExportJson")';
+        var url = '@Url.Content("~/OrganizationManage/User/ExportUserJson")';
         var postData = $("#searchDiv").getWebControls();
         ys.exportExcel(url, postData);
+    }
+
+    function importForm() {
+      ys.openDialog({
+            title: "导入用户数据",
+            content: '@Url.Content("~/OrganizationManage/User/UserImport")',
+            height: "280px",
+            callback: function (index, layero) {
+                var iframeWin = window[layero.find('iframe')[0]['name']];
+                iframeWin.saveForm(index);
+            }
+        });
     }
 </script>

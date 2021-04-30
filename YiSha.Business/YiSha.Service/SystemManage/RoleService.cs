@@ -37,7 +37,7 @@ namespace YiSha.Service.SystemManage
 
         public async Task<int> GetMaxSort()
         {
-            object result = await this.BaseRepository().FindObject("SELECT MAX(role_sort) FROM sys_role");
+            object result = await this.BaseRepository().FindObject("SELECT MAX(RoleSort) FROM SysRole");
             int sort = result.ParseToInt();
             sort++;
             return sort;
@@ -62,7 +62,7 @@ namespace YiSha.Service.SystemManage
         #region 提交数据
         public async Task SaveForm(RoleEntity entity)
         {
-            var db = this.BaseRepository().BeginTrans();
+            var db = await this.BaseRepository().BeginTrans();
             try
             {
                 if (entity.Id.IsNullOrZero())
@@ -79,7 +79,7 @@ namespace YiSha.Service.SystemManage
                 // 角色对应的菜单、页面和按钮权限
                 if (!string.IsNullOrEmpty(entity.MenuIds))
                 {
-                    foreach (long menuId in CommonHelper.SplitToArray<long>(entity.MenuIds, ','))
+                    foreach (long menuId in TextHelper.SplitToArray<long>(entity.MenuIds, ','))
                     {
                         MenuAuthorizeEntity menuAuthorizeEntity = new MenuAuthorizeEntity();
                         menuAuthorizeEntity.AuthorizeId = entity.Id;
@@ -89,18 +89,18 @@ namespace YiSha.Service.SystemManage
                         await db.Insert(menuAuthorizeEntity);
                     }
                 }
-                await db.Commit();
+                await db.CommitTrans();
             }
             catch
             {
-                db.Rollback();
+                await db.RollbackTrans();
                 throw;
             }
         }
 
         public async Task DeleteForm(string ids)
         {
-            long[] idArr = CommonHelper.SplitToArray<long>(ids, ',');
+            long[] idArr = TextHelper.SplitToArray<long>(ids, ',');
             await this.BaseRepository().Delete<RoleEntity>(idArr);
         }
         #endregion
@@ -117,7 +117,7 @@ namespace YiSha.Service.SystemManage
                 }
                 if (!string.IsNullOrEmpty(param.RoleIds))
                 {
-                    long[] roleIdArr = CommonHelper.SplitToArray<long>(param.RoleIds, ',');
+                    long[] roleIdArr = TextHelper.SplitToArray<long>(param.RoleIds, ',');
                     expression = expression.And(t => roleIdArr.Contains(t.Id.Value));
                 }
                 if (!string.IsNullOrEmpty(param.RoleName))
@@ -134,7 +134,7 @@ namespace YiSha.Service.SystemManage
                 }
                 if (!string.IsNullOrEmpty(param.EndTime.ParseToString()))
                 {
-                    param.EndTime = (param.EndTime.Value.ToString("yyyy-MM-dd") + " 23:59:59").ParseToDateTime();
+                    param.EndTime = param.EndTime.Value.Date.Add(new TimeSpan(23, 59, 59));
                     expression = expression.And(t => t.BaseModifyTime <= param.EndTime);
                 }
             }

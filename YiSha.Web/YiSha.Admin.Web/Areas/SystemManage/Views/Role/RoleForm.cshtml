@@ -1,5 +1,5 @@
 ﻿@{
-    Layout = "~/Views/Shared/_SaveWhite.cshtml";
+    Layout = "~/Views/Shared/_FormWhite.cshtml";
 }
 
 <div class="wrapper animated fadeInRight">
@@ -18,17 +18,7 @@
         </div>
         <div class="form-group">
             <label class="col-sm-3 control-label ">状态</label>
-            <div class="col-sm-8">
-                @{
-                    Dictionary<int, string> statusList = typeof(StatusEnum).EnumToDictionary();
-                    foreach (int key in statusList.Keys)
-                    {
-                        <div class="radio-box">
-                            <input id="@Html.Raw("roleStatus"+key)" col="RoleStatus" type="radio" value="@key" />
-                            <label>@statusList[key]</label>
-                        </div>
-                    }
-                }
+            <div class="col-sm-8" id="roleStatus" col="RoleStatus">
             </div>
         </div>
         <div class="form-group">
@@ -49,6 +39,8 @@
 <script type="text/javascript">
     var id = ys.request("id");
     $(function () {
+        $("#roleStatus").ysRadioBox({ data: ys.getJson(@Html.Raw(typeof(StatusEnum).EnumToDictionaryString())) });
+
         loadMenuTree();
 
         getForm();
@@ -76,8 +68,8 @@
                 type: "get",
                 success: function (obj) {
                     if (obj.Tag == 1) {
-                        $("#form").setWebControls(obj.Result);
-                        $('#menuTree').ysTree("setCheckedNodes", obj.Result.MenuIds);
+                        $("#form").setWebControls(obj.Data);
+                        $('#menuTree').ysTree("setCheckedNodes", obj.Data.MenuIds);
                     }
                 }
             });
@@ -89,7 +81,7 @@
                 success: function (obj) {
                     if (obj.Tag == 1) {
                         var defaultData = {};
-                        defaultData.RoleSort = obj.Result;
+                        defaultData.RoleSort = obj.Data;
                         defaultData.RoleStatus = "@StatusEnum.Yes.ParseToInt()";
                         $("#form").setWebControls(defaultData);
                     }
