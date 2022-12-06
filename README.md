@@ -4,7 +4,7 @@
  
 | YiShaAdmin 版本 | .NET Core 版本 | 是否支持 | 链接 | Developer |
 |:-----|:-----|:-----|:-----|:-----|
-| 6.0 | 6.0 | 支持 | [YiShaAdmin-Net6.0](https://github.com/liukuo362573/YiShaAdmin/tree/YiShaAdmin-Net6) | [zgcwkj](https://github.com/zgcwkj) |
+| 6.0 | 6.0 | 支持(开发中，不建议商用) | [YiShaAdmin-Net6.0](https://github.com/liukuo362573/YiShaAdmin/tree/YiShaAdmin-Net6) | [zgcwkj](https://github.com/zgcwkj) |
 | 3.1 | 3.1 | 支持 | [YiShaAdmin-Net3.1](https://github.com/liukuo362573/YiShaAdmin/tree/master) |  |
 | 2.2 | 2.2 | 支持 | [YiShaAdmin-Net2.2](https://github.com/liukuo362573/YiShaAdmin/releases/tag/v2.2)| |
 
@@ -26,13 +26,14 @@
 - 代码生成：快速生成对单表的增删改查
 - 服务器信息：查看服务器的基本信息
 
-## 在线体验
-1. 项目地址：[http://106.14.124.170/admin](http://106.14.124.170/admin)  
-2. 账号密码：admin 123456
 
 ## 开发文档
 
-文档地址：[http://106.14.124.170/doc](http://106.14.124.170/doc)  
+文档地址：[https://www.toolhelper.cn/doc](http://www.toolhelper.cn/doc)  
+
+## QQ 交流群
+
+851661600
 
 ## 演示图
 
